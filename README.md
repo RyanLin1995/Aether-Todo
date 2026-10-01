@@ -1,45 +1,88 @@
-# Aether Todo
+<p align="center">
+  <img src="build/icon.png" width="112" alt="Aether Todo" />
+</p>
 
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20x64-lightgrey)](#)
-[![Electron](https://img.shields.io/badge/Electron-44-47848F?logo=electron&logoColor=white)](#)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](#)
-[![Bun](https://img.shields.io/badge/bun-1.4-f472b6?logo=bun&logoColor=white)](#)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)](#)
+<h1 align="center">Aether Todo</h1>
 
-A vanguard, local-first Windows to-do experience crafted with **Liquid Glass** aesthetics. Transforms natural speech into structured tasks — with automatic priority, category, customizable Pomodoro focus, and reminders. Zero account, zero telemetry, 100% offline-ready.
+<p align="center">
+  <b>A personal time console for the vibe-coding era</b><br/>
+  You're running several AI agents at once — don't lose track of yourself<br/>
+  Drop a task in plain words, get priority and a due time, and a nudge when it's time
+</p>
 
-Say **"send the weekly report to my boss before 3pm tomorrow, it's urgent"** → parsed into a task with deadline, priority (*high*, with a stated reason) and category (*Work*) → confirm → reminded on time.
+<p align="center">
+  <a href="https://github.com/RyanLin1995/Aether-Todo/releases/latest"><img src="https://img.shields.io/github/v/release/RyanLin1995/Aether-Todo?style=flat-square&label=latest&color=7C3AED" alt="Latest Release"></a>
+  <a href="https://github.com/RyanLin1995/Aether-Todo/releases"><img src="https://img.shields.io/github/downloads/RyanLin1995/Aether-Todo/total?style=flat-square&color=7C3AED&label=downloads" alt="Downloads"></a>
+  <img src="https://img.shields.io/badge/platform-Windows%20x64-blue?style=flat-square" alt="Platform">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square" alt="License"></a>
+</p>
 
-简体中文文档：[README_CN.md](README_CN.md)
+<p align="center">
+  <a href="https://github.com/RyanLin1995/Aether-Todo/releases/latest">Download</a> ·
+  <a href="./README_CN.md">简体中文</a>
+</p>
 
-![Aether Todo](tests/screenshots/audit/01-main-initial.png)
+![Aether Todo main window](docs/screenshots/main.png)
+
+## Why I built this
+
+After vibe coding took over my day, I found myself running "multithreaded".
+
+- Claude Code is working on one thing, Codex on another repo, and in the back of my head there's "reply to the boss later" and "don't forget the milk".
+- My attention got sliced into pieces. The agents shipped a lot; *I* remembered almost nothing.
+- What I was missing wasn't more agents — it was something that would **re-plan my time and call me back** when it's time to do the thing.
+
+So I built Aether Todo — a local-first to-do + focus app for Windows.
+
+Toss the scattered "I'll do this later" thoughts into it in plain words. It sorts them by priority, keeps an eye on progress, and reminds you on time. No account, no network, no upload — your data stays on your machine.
+
+## What it looks like
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/island.png" alt="Dynamic Island widget"></td>
+<td width="50%"><img src="docs/screenshots/notification.png" alt="Reminder"></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/stats.png" alt="Statistics"></td>
+<td><img src="docs/screenshots/main-dark.png" alt="Dark mode"></td>
+</tr>
+</table>
+
+## One sentence → one task
+
+Say or type **"send the weekly report to my boss before 3pm tomorrow, it's urgent"**:
+
+```
+Due         Tomorrow 15:00
+Priority    High   (reason: "it's urgent", and it's due today)
+Category    Work
+```
+
+Hit "Add" → you get a reminder on time. Changed your mind? Say *"I already finished the weekly report"* and it finds the task and marks it done.
 
 ## Features
 
-- 💧 **Liquid Glass Design System** — Awwwards / FWA tier craftsmanship with specular rim lights, fluid mesh glow, crystal borders & physics-based interactions
-- 🏝️ **Dynamic Island Floating Widget** — Seamless morphing between compact pill and expanded island modes, complete with pulse rings, luminous progress bars, and micro-capsule controls
-- 💎 **Pure Vector System** — Unified Lucide icons throughout the app, completely free of Emoji
-- ↕️ **Drag-and-Drop Task Reordering** — Intuitive handle drag-and-drop with real-time insertion glow lines, persisted to local disk
-- 🍅 **Versatile Pomodoro Timer (Pause & Resume)** — Configurable focus duration, pause/resume capability, and safe confirmation dialogs to protect focus sessions
-- 📧 **Drop Email & File Extraction** — Drag `.eml` emails or documents directly into the AI assistant for instant task generation
-- 💭 **AI Deep Thinking Wave Animation** — Fluid three-dot wave animation during task decomposition for mindful feedback
-- ⚙️ **System-wide Liquid Opacity** — Real-time slider adjusting blur and glass opacity across both main app and floating island
-- 📐 **Adaptive Fluid Layout** — Fully responsive task cards with stable action pills that adapt smoothly across any window size (1000px to 4K ultra-wide)
-- 🤖 **Natural Language → Tasks** — Chat with the built-in assistant; one sentence can become several tasks
-- 🎯 **Automatic Priority** — High / Medium / Low, each with a human-readable verdict
-- 🗂 **Automatic Categories** — Work · Study · Life · Health · Finance · Social · Other
-- ⏰ **Reminders** — OS notifications, "remind me early", background tray service
-- 💬 **Bi-directional Conversation** — *"I already finished the weekly report"* → it finds and completes the task
-- 🌐 **Bilingual UI** — 简体中文 / English, switchable in Settings
-- 🌓 **Dark Mode** — Light / Dark / Follow-System with glassmorphic depth
-- 📊 **Statistics Dashboard** — Weekly / Monthly / Yearly completion stats, trend charts, and category breakdowns
-- 🔌 **Proxy Support** — LLM requests go direct, via the system proxy, or through a custom HTTP proxy
-- 🔒 **Local-only Data** — Human-readable JSON storage, atomic writes, zero telemetry
+- **Natural language → tasks** — talk like a human; one sentence can split into several tasks
+- **Automatic priority & category** — High / Medium / Low, each with a plain-language reason
+- **On-time reminders** — "remind me early" support, tray service keeps running even after you close the window
+- **Pomodoro (pause / resume)** — configurable focus length
+- **Dynamic Island widget** — snaps to the screen edge; glance at the current task and countdown anytime
+- **Statistics dashboard** — weekly / monthly / yearly completion, trends, category breakdown
+- **Liquid Glass UI** — light / dark themes, real-time opacity slider
+- **Bilingual** — 简体中文 / English, switchable instantly (UI, AI replies, notifications)
+- **Local-only** — a single human-readable JSON file, atomic writes, zero telemetry
+- **Works with or without an API key** — any OpenAI-compatible LLM (DeepSeek, Qwen, Zhipu, Ollama…); no key or network error → it silently falls back to the built-in local rule engine
 
-**Works with or without an API key.** The AI layer has two engines: any OpenAI-compatible LLM (DeepSeek, Qwen, Zhipu, OpenAI, local Ollama…) and a built-in local rule engine (zh/en time parsing + keyword priority + category dictionary). No key, network error, or timeout → it silently falls back to local parsing.
+## Download
 
-## Quick start
+Windows x64, double-click to install, with a **Chinese / English** setup wizard.
+
+**[Download the latest release](https://github.com/RyanLin1995/Aether-Todo/releases/latest)**
+
+> The installer isn't code-signed, so Windows SmartScreen may warn on first launch — click "More info → Run anyway".
+
+## Run it yourself
 
 ```bash
 bun install                                        # dependencies
@@ -48,30 +91,37 @@ ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ \
 bun run start                                      # build + launch
 ```
 
-> [!WARNING]
-> If your shell sets `ELECTRON_RUN_AS_NODE=1`, `electron.exe` degrades to plain Node. `bun run start` strips it via `scripts/launch.js`.
-
-### End users
-
-Run **`dist/Aether Todo-1.0.0-Setup.exe`** — NSIS installer with a **language picker (简体中文 / English)**, desktop & Start-menu shortcuts, and a proper uninstaller (also reachable from *Settings → About → Uninstall app*).
-
-## Scripts
-
-| Command | Description |
+| Command | What it does |
 |---|---|
-| `bun run start` / `dev` | Build (TS → bundles) and launch |
-| `bun run typecheck` | `tsc --noEmit` (strict mode) |
-| `bun run test` | Logic & boundary tests (store, zh/en time parsing, priority/category, reminders, i18n) |
-| `node scripts/verify-all-buttons.js` | Automated full button audit verifying success & error states across 22 test nodes |
-| `bun run icon` | Regenerate the app icon |
-| `bun run build` | Full pipeline: prebuild, asset injection, and package into `dist/Aether Todo-1.0.0-Setup.exe` |
+| `bun run start` | Build and launch |
+| `bun run typecheck` | TypeScript strict type check |
+| `bun run test` | Logic & boundary tests |
+| `bun run build` | Package into `dist/*-Setup.exe` |
 
-## Configuring the AI (optional)
+## Tech stack
 
-Settings → **AI model**: base URL, API key, model name, plus a **network proxy** choice (none / system / custom HTTP). **Test connection** verifies the whole chain; leave the key empty to stay on the local engine forever.
+Electron 44 · TypeScript (strict) · Bun · local JSON storage · zero native dependencies.
 
 <details>
-<summary>Model output contract (strict JSON)</summary>
+<summary>AI configuration / project structure / model output contract</summary>
+
+**AI configuration**: Settings → AI model — base URL, API key, model name, plus an optional network proxy (direct / system / custom HTTP). Leave the key empty to stay on the local rule engine forever.
+
+**Project structure**
+
+```
+src/
+  shared/types.ts      types shared by main & renderer
+  main/                Electron main process: window, tray, notifications, store, AI, reminder scheduler
+  preload.ts           contextBridge API surface
+  renderer/            UI: tasks, assistant, settings, statistics, Pomodoro
+build/                 icon source & packaging assets
+scripts/               build, icon generation, diagnostics
+tests/                 logic tests + CDP-driven GUI tests
+docs/screenshots/      README images
+```
+
+**Model output contract (strict JSON, graceful fallback on malformed output)**
 
 ```json
 {
@@ -80,7 +130,6 @@ Settings → **AI model**: base URL, API key, model name, plus a **network proxy
   "tasks": [
     {
       "title": "Send the weekly report to my boss",
-      "note": "",
       "category": "工作",
       "priority": "high",
       "priorityReason": "Boss is waiting and it's due today",
@@ -92,64 +141,8 @@ Settings → **AI model**: base URL, API key, model name, plus a **network proxy
 }
 ```
 
-`intent`: `create` · `complete` · `list` · `chat`. Malformed output is handled gracefully (local fallback).
+`intent`: `create` · `complete` · `list` · `chat`.
 </details>
-
-## Project structure
-
-```
-src/
-  shared/types.ts      types shared by main & renderer
-  main/                Electron main process (TypeScript)
-    main.ts            window, tray, notifications, single-instance lock
-    ipc.ts             all IPC handlers
-    store.ts           JSON file database (atomic writes)
-    ai.ts              dual AI engine (remote LLM + local rules)
-    prompt.ts          bilingual system prompts
-    i18n.ts            main-process strings
-    reminder.ts        due-task scheduler
-    crypto.ts          ID generation, password hashing
-  preload.ts           contextBridge API surface
-  renderer/
-    index.html · styles.css
-    src/               app.ts · api.ts · tasks.ts · assistant.ts · settings.ts · i18n.ts · utils.ts
-dist-electron/         built main/preload bundles (generated)
-src/renderer-dist/     built renderer bundle (generated)
-scripts/               launch.js · make-icon.js · diag.js
-tests/                 run.ts (logic) · e2e.js (GUI) · screenshots/
-```
-
-## Testing
-
-```bash
-bun run typecheck   # strict TS, clean
-bun run test        # 51/51
-bun run test:e2e    # 41/41 — drives the real window over CDP
-```
-
-E2E covers: boot without login → AI parsing → confirm tasks → complete/filter → settings → reminders → language switching → persistence after reload. It can also run against the packaged exe:
-
-```bash
-AITODO_BIN="dist/win-unpacked/AI待办.exe" node tests/e2e.js
-```
-
-## Internationalization & theming
-
-简体中文 (default) and English, switchable in **Settings → Language** — no restart. Applies to the UI, local-engine replies & verdicts, the LLM prompt, notifications, tray menu, window title, and date formatting. Categories are stored as internal Chinese keys and localized at display time.
-
-Theming runs on daisyUI 5 design tokens: **light / dark / follow-system**, also in Settings and persisted locally.
-
-To add a language: add a message table with identical keys to both `src/main/i18n.ts` and `src/renderer/src/i18n.ts` (a unit test enforces key parity), then register it in `SUPPORTED_LOCALES`.
-
-## Building & data
-
-```bash
-bun run build   # → dist/AI Todo App-1.0.0-Setup.exe (~107 MB, NSIS, x64)
-```
-
-- Data lives at `%APPDATA%\ai-todo\data\db.json` — single file, atomic writes, nothing leaves your machine except the LLM request you configure.
-- Binaries are pulled via npmmirror (`ELECTRON_MIRROR`, `ELECTRON_BUILDER_BINARIES_MIRROR`).
-- The installer is not code-signed; Windows SmartScreen may warn on first launch. For public distribution, set `CSC_LINK` / `CSC_KEY_PASSWORD`.
 
 ## License
 
@@ -157,4 +150,4 @@ bun run build   # → dist/AI Todo App-1.0.0-Setup.exe (~107 MB, NSIS, x64)
 
 ## Acknowledgements
 
-Designed, implemented, tested and packaged end-to-end by **WorkBuddy**, an AI assistant — architecture decisions, dual AI engine, CDP-based GUI test harness, icon generation, and the installer pipeline all included. Standing on Electron, Bun, electron-builder and the Node.js ecosystem.
+Designed, implemented, tested and packaged end-to-end by **WorkBuddy**, an AI assistant — architecture decisions, dual AI engine, the UI, the CDP-based GUI test harness, icon generation, and the installer pipeline all included. Standing on the shoulders of Electron, Bun, electron-builder and the Node.js ecosystem.
