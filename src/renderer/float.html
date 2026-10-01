@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN" class="float-html" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title data-i18n="float.title">Aether Todo · 灵动岛</title>
+    <style>
+      html, body {
+        background: transparent !important;
+        background-color: transparent !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        width: 100%;
+        height: 100%;
+        user-select: none;
+      }
+    </style>
+    <link rel="stylesheet" href="../renderer-dist/styles.css?v=1.1.2" />
+    <script src="../renderer-dist/float.js?v=1.1.2" defer></script>
+  </head>
+  <body class="float-body">
+    <input id="float-opacity" type="range" min="30" max="100" value="92" class="hidden" aria-hidden="true" />
+    <!-- 苹果先锋 Dynamic Island 灵动岛容器 -->
+    <main id="dynamic-island" class="dynamic-island island-compact">
+      <!-- 1. 紧凑胶囊态视图 (Pill Mode) -->
+      <div id="island-compact-view" class="island-compact-view">
+        <div class="island-pill-left">
+          <span id="island-pulse" class="island-pulse"></span>
+          <span id="island-compact-title" class="island-compact-title">—</span>
+        </div>
+        <div class="island-pill-right">
+          <span id="island-compact-clock" class="island-compact-clock">25:00</span>
+          <button id="island-toggle-expand" class="island-mini-icon-btn" title="展开灵动岛"></button>
+        </div>
+      </div>
+
+      <!-- 2. 展开岛屿态视图 (Expanded Mode) -->
+      <div id="island-expanded-view" class="island-expanded-view">
+        <!-- 岛屿顶栏 -->
+        <header class="island-head">
+          <div class="island-brand-group">
+            <span id="float-prio" class="float-prio"></span>
+            <span class="island-brand-name" data-i18n="float.brand">Aether 专注</span>
+          </div>
+          <div class="island-head-actions">
+            <button id="island-prev-task" class="island-icon-btn" data-i18n-title="float.prevTask" title="上一个任务"></button>
+            <button id="island-next-task" class="island-icon-btn" data-i18n-title="float.nextTask" title="下一个任务"></button>
+            <button id="island-toggle-compact" class="island-icon-btn island-btn-collapse" data-i18n-title="float.collapse" title="收起灵动岛"></button>
+            <button id="float-open" class="island-icon-btn" data-i18n-title="float.openMain" title="打开主界面"></button>
+            <button id="float-close" class="island-icon-btn" data-i18n-title="float.hide" title="隐藏浮窗"></button>
+          </div>
+        </header>
+
+        <!-- 岛屿中区：当前任务详情与流光进度条 -->
+        <section class="island-task-area">
+          <p id="float-title" class="float-title">—</p>
+          <p id="float-meta" class="float-meta"></p>
+          <div class="island-progress-track">
+            <div id="island-progress-bar" class="island-progress-bar" style="width: 0%;"></div>
+          </div>
+        </section>
+
+        <!-- 岛屿底栏：番茄钟大字时钟与操控药丸 -->
+        <footer class="island-control-bar">
+          <div class="island-clock-box">
+            <span id="float-clock" class="float-clock">25:00</span>
+            <span id="island-clock-status" class="island-clock-status">未开始</span>
+          </div>
+          <div class="island-pomo-actions">
+            <button id="float-pomo" class="island-pill-btn primary" data-i18n="float.startFocus">开始专注</button>
+            <button id="float-pause" class="island-pill-btn warning-btn hidden" data-i18n="float.pause">暂停</button>
+            <button id="float-resume" class="island-pill-btn primary hidden" data-i18n="float.resume">继续</button>
+            <button id="float-stop" class="island-pill-btn danger-btn hidden" data-i18n="float.stop">停止</button>
+          </div>
+        </footer>
+      </div>
+
+      <!-- 3. 应用内确认弹窗：替代系统原生 confirm，保持与软件一致的液态玻璃风格 -->
+      <div
+        id="island-confirm"
+        class="island-confirm hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="island-confirm-title"
+      >
+        <div id="island-confirm-card" class="island-confirm-card">
+          <header class="island-confirm-head">
+            <span id="island-confirm-icon" class="island-confirm-icon"></span>
+            <h4 id="island-confirm-title" class="island-confirm-title">结束本次专注</h4>
+            <button id="island-confirm-close" class="island-confirm-close" type="button" aria-label="关闭"></button>
+          </header>
+          <p id="island-confirm-message" class="island-confirm-message"></p>
+          <footer class="island-confirm-foot">
+            <button id="island-confirm-cancel" class="island-pill-btn neutral-btn" type="button" data-i18n="task.cancel">
+              取消
+            </button>
+            <button id="island-confirm-ok" class="island-pill-btn danger-btn" type="button" data-i18n="pomodoro.stopConfirm">
+              结束专注
+            </button>
+          </footer>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
