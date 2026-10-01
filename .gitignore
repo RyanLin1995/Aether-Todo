@@ -1,0 +1,31 @@
+# Dependencies (regenerable via `bun install`)
+node_modules/
+
+# Build outputs (regenerable via `bun run build`)
+dist/
+dist-electron/
+dist_prev*/
+dist_tmp*/
+*.blockmap
+
+# Build lock backup
+bun.lock.npmmirror.bak
+
+# Test screenshots (binary, regenerable)
+tests/screenshots/
+
+# Local project memory / tooling state
+.workbuddy/
+
+# Internal push/release helper scripts (not app source)
+scripts/_*.sh
+scripts/_*.mjs
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.log
+
+# --- Kept in repo (source of truth) ---
+# src/  scripts/  build/  package.json  bun.lock  bunfig.toml  tsconfig.json
+# LICENSE  README.md  README_CN.md  aether-todo-icon_assets/  aether-todo-icon.miora
