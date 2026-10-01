@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    />
+    <title data-i18n="app.title">Aether Todo</title>
+    <link rel="stylesheet" href="../renderer-dist/styles.css?v=1.1.2" />
+    <script src="../renderer-dist/app.js?v=1.1.2" defer></script>
+  </head>
+  <body class="bg-base-200 text-base-content antialiased">
+    <!-- 液态玻璃先锋环境光斑层 -->
+    <div class="liquid-backdrop" aria-hidden="true">
+      <div class="liquid-orb liquid-orb-1"></div>
+      <div class="liquid-orb liquid-orb-2"></div>
+      <div class="liquid-orb liquid-orb-3"></div>
+    </div>
+
+    <!-- ============ 主界面 ============ -->
+    <section id="app-view" class="app-view">
+      <header class="topbar">
+        <div class="topbar-left">
+          <img class="brand-logo-img" src="assets/logo.png" alt="Aether Todo" width="32" height="32" />
+          <div class="topbar-title">
+            <strong data-i18n="app.title">Aether Todo</strong>
+            <span id="engine-badge" class="engine-badge">本地解析</span>
+          </div>
+        </div>
+        <div class="topbar-right">
+          <span id="pomodoro-indicator" class="pomodoro-indicator hidden"></span>
+          <button id="btn-toggle-assistant" class="ui-btn ghost topbar-action-btn" title="收起/展开 AI 助手">
+            <span id="btn-assistant-icon" class="inline-flex items-center"></span>
+            <span data-i18n="assistant.title">AI 助手</span>
+          </button>
+          <button id="btn-float" class="ui-btn ghost topbar-action-btn">
+            <span id="btn-float-icon" class="inline-flex items-center"></span>
+            <span data-i18n="topbar.float">浮窗</span>
+          </button>
+          <button id="btn-settings" class="ui-btn ghost topbar-action-btn">
+            <span id="btn-settings-icon" class="inline-flex items-center"></span>
+            <span data-i18n="topbar.settings">设置</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="layout">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+          <div class="stat-grid">
+            <div class="stat">
+              <span class="stat-num" id="stat-active">0</span>
+              <span class="stat-label" data-i18n="stat.active">进行中</span>
+            </div>
+            <div class="stat">
+              <span class="stat-num" id="stat-done">0</span>
+              <span class="stat-label" data-i18n="stat.done">已完成</span>
+            </div>
+            <div class="stat">
+              <span class="stat-num danger" id="stat-high">0</span>
+              <span class="stat-label" data-i18n="stat.high">高优先级</span>
+            </div>
+            <div class="stat">
+              <span class="stat-num" id="stat-total">0</span>
+              <span class="stat-label" data-i18n="stat.total">全部</span>
+            </div>
+          </div>
+
+          <div class="side-block">
+            <h3 data-i18n="sidebar.views">视图</h3>
+            <ul class="filter-list" id="view-filter">
+              <li class="active" data-view="active" data-i18n="view.active">进行中</li>
+              <li data-view="today" data-i18n="view.today">今天到期</li>
+              <li data-view="high" data-i18n="view.high">高优先级</li>
+              <li data-view="done" data-i18n="view.done">已完成</li>
+              <li data-view="all" data-i18n="view.all">全部任务</li>
+              <li data-view="stats" data-i18n="view.stats">统计</li>
+            </ul>
+          </div>
+
+          <div class="side-block">
+            <h3 data-i18n="sidebar.categories">类别</h3>
+            <ul class="filter-list" id="category-filter">
+              <li class="active" data-category="all" data-i18n="category.all">全部类别</li>
+            </ul>
+          </div>
+
+          <div class="side-block">
+            <h3 data-i18n="sidebar.search">搜索</h3>
+            <div class="search-box">
+              <span id="search-icon-slot" class="search-icon-slot"></span>
+              <input
+                id="search-input"
+                class="search"
+                type="search"
+                data-i18n-placeholder="sidebar.searchPlaceholder"
+                placeholder="搜索标题或备注"
+              />
+            </div>
+          </div>
+        </aside>
+
+        <!-- 任务区 -->
+        <section class="content">
+          <div class="content-head">
+            <h2 id="content-title" data-i18n="view.active">进行中</h2>
+            <div class="content-actions">
+              <button id="btn-new" class="ui-btn primary">
+                <span id="btn-new-icon" class="inline-flex items-center"></span>
+                <span data-i18n="task.new">新建任务</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="task-list" class="task-list"></div>
+          <div id="stats-view" class="hidden"></div>
+          <div id="empty-state" class="empty-state hidden">
+            <div id="empty-icon-slot" class="empty-icon-slot"></div>
+            <p class="empty-title" data-i18n="task.empty.title">这里还没有任务</p>
+            <span class="empty-hint" data-i18n="task.empty.hint">试试在右侧对 AI 说：「明天下午三点前把周报发给老板，很急」</span>
+          </div>
+        </section>
+
+        <!-- AI 助手 -->
+        <aside id="assistant-panel" class="assistant">
+          <div class="assistant-head">
+            <div class="flex items-center gap-2">
+              <span id="assistant-head-icon" class="inline-flex items-center text-primary"></span>
+              <div>
+                <h3 data-i18n="assistant.title">AI 助手</h3>
+                <span id="assistant-sub" class="assistant-sub" data-i18n="assistant.subtitle"
+                  >自然语言解析 · 自动判优先级与分类</span
+                >
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <button id="btn-clear-chat" class="ui-btn tiny ghost" data-i18n="assistant.clear">清空</button>
+              <button id="btn-close-assistant" class="ui-btn tiny ghost" title="收起助手">
+                <span id="btn-close-assistant-icon" class="inline-flex items-center"></span>
+              </button>
+            </div>
+          </div>
+
+          <div id="chat-messages" class="chat-messages"></div>
+
+          <!-- 邮件/文件拖拽投放区 -->
+          <div id="assistant-dropzone" class="assistant-dropzone">
+            <input type="file" id="file-upload-input" class="hidden" accept=".eml,.msg,.txt,.md,.json,.csv,.log" />
+            <div class="dropzone-content">
+              <span id="dropzone-icon" class="inline-flex items-center"></span>
+              <span class="dropzone-text" data-i18n="drop.hint">拖放邮件 (.eml) 或文件至此，AI 自动提取任务</span>
+            </div>
+          </div>
+
+          <div class="chat-quick" id="chat-quick">
+            <button class="chip" data-i18n="quick.1">明天下午三点前把周报发给老板，很急</button>
+            <button class="chip" data-i18n="quick.2">周末有空给妈妈打个电话</button>
+            <button class="chip" data-i18n="quick.3">下周三之前提交项目方案</button>
+          </div>
+
+          <div class="chat-input-wrapper">
+            <div class="chat-input-toolbar">
+              <button id="btn-attach-file" class="chat-tool-btn" title="选择邮件或文本文件">
+                <span id="btn-attach-icon" class="inline-flex items-center"></span>
+                <span class="text-[11px]">添加文件</span>
+              </button>
+            </div>
+            <div class="chat-input">
+              <textarea
+                id="chat-input"
+                rows="2"
+                data-i18n-placeholder="assistant.placeholder"
+                placeholder="用一句话描述或拖入邮件文件..."
+              ></textarea>
+              <button id="btn-send" class="ui-btn primary" data-i18n="assistant.send">发送</button>
+            </div>
+          </div>
+        </aside>
+      </main>
+    </section>
+
+    <!-- ============ 设置弹窗 ============ -->
+    <div id="settings-modal" class="ui-modal hidden">
+      <div class="ui-modal-card">
+        <div class="ui-modal-head">
+          <h3 data-i18n="settings.title">设置</h3>
+          <button id="btn-close-settings" class="ui-btn tiny ghost">
+            <span id="btn-close-icon" class="inline-flex items-center"></span>
+            <span data-i18n="settings.close">关闭</span>
+          </button>
+        </div>
+        <div class="ui-modal-body settings-body">
+          <section class="settings-section">
+            <h4><span class="settings-section-dot"></span><span data-i18n="settings.generalSection">通用</span></h4>
+            <div class="settings-grid">
+              <label class="field">
+                <span data-i18n="settings.language">界面语言</span>
+                <select id="set-locale">
+                  <option value="zh-CN">简体中文</option>
+                  <option value="en-US">English</option>
+                </select>
+              </label>
+              <label class="field">
+                <span data-i18n="settings.theme">主题</span>
+                <select id="set-theme">
+                  <option value="light" data-i18n="theme.light">浅色</option>
+                  <option value="dark" data-i18n="theme.dark">深色</option>
+                  <option value="system" data-i18n="theme.system">跟随系统</option>
+                </select>
+              </label>
+            </div>
+            <p class="hint" data-i18n="settings.languageHint">切换后立即生效，并会记住你的选择</p>
+          </section>
+
+          <section class="settings-section">
+            <h4><span class="settings-section-dot"></span><span data-i18n="settings.aiSection">AI 大模型</span></h4>
+            <label class="switch settings-switch-row">
+              <input id="set-ai-enabled" type="checkbox" class="toggle toggle-sm toggle-primary" />
+              <span data-i18n="settings.aiEnabled">启用 AI 增强解析（关闭则始终使用本地规则解析）</span>
+            </label>
+            <label class="field">
+              <span data-i18n="settings.baseUrl">接口地址（OpenAI 兼容）</span>
+              <input id="set-baseurl" type="text" placeholder="https://api.deepseek.com/v1" />
+            </label>
+            <div class="settings-grid">
+              <label class="field">
+                <span data-i18n="settings.apiKey">API Key</span>
+                <input id="set-apikey" type="password" placeholder="sk-..." />
+              </label>
+              <label class="field">
+                <span data-i18n="settings.model">模型名称</span>
+                <input id="set-model" type="text" placeholder="deepseek-chat" />
+              </label>
+            </div>
+            <div class="settings-grid">
+              <label class="field">
+                <span data-i18n="settings.proxyMode">网络代理</span>
+                <select id="set-proxy-mode">
+                  <option value="none" data-i18n="proxy.none">不使用代理</option>
+                  <option value="system" data-i18n="proxy.system">跟随系统代理</option>
+                  <option value="custom" data-i18n="proxy.custom">自定义代理</option>
+                </select>
+              </label>
+              <label class="field" id="proxy-url-field">
+                <span data-i18n="settings.proxyUrl">代理地址</span>
+                <input id="set-proxy-url" type="text" placeholder="http://127.0.0.1:7890" />
+              </label>
+            </div>
+            <p class="hint" data-i18n="settings.proxyHint">支持 HTTP / HTTPS 代理；SOCKS 代理暂不支持。</p>
+            <div class="row settings-test-row">
+              <button id="btn-test-ai" class="ui-btn" data-i18n="settings.test">测试连接</button>
+              <span id="ai-test-result" class="hint"></span>
+            </div>
+            <p class="hint" data-i18n-html="settings.aiHints">
+              · 支持 DeepSeek、通义千问、智谱、OpenAI、moonshot、本地 Ollama 等所有 OpenAI 兼容接口。<br />
+              · 未配置 Key 或调用失败时，会自动降级为本地规则解析，功能依然可用。
+            </p>
+          </section>
+
+          <section class="settings-section">
+            <h4><span class="settings-section-dot"></span><span data-i18n="settings.pomoSection">专注与悬浮窗</span></h4>
+            <div class="settings-grid">
+              <label class="field">
+                <span data-i18n="settings.pomoMinutes">单次专注时长（分钟）</span>
+                <input id="set-pomo-minutes" type="number" min="1" max="180" value="25" />
+              </label>
+              <div class="field">
+                <div class="flex items-center justify-between mb-1">
+                  <span data-i18n="settings.liquidLevel">整体液态程度</span>
+                  <span id="val-float-opacity" class="opacity-value-badge">92%</span>
+                </div>
+                <!-- 拉条 0–100 线性映射到实际透明度 30%–100%，预览卡实时同步 -->
+                <div id="opacity-preview" class="opacity-preview" aria-hidden="true">
+                  <div id="opacity-preview-glass" class="opacity-preview-glass">
+                    <span class="opacity-preview-dot"></span>
+                    <span class="opacity-preview-text">Aether Todo</span>
+                  </div>
+                </div>
+                <input id="set-float-opacity" class="opacity-range" type="range" min="0" max="100" step="1" value="88" />
+                <div class="opacity-range-scale">
+                  <span data-i18n="settings.liquidLevelMin">30%（轻薄通透）</span>
+                  <span data-i18n="settings.liquidLevelMax">100%（厚重折射）</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <h4><span class="settings-section-dot"></span><span data-i18n="settings.reminderSection">提醒</span></h4>
+            <label class="switch settings-switch-row">
+              <input id="set-reminder" type="checkbox" class="toggle toggle-sm toggle-primary" />
+              <span data-i18n="settings.reminderEnabled">开启任务提醒（到点弹出系统通知）</span>
+            </label>
+            <label class="field">
+              <span data-i18n="settings.lead">默认提前提醒（分钟）</span>
+              <input id="set-lead" type="number" min="0" max="1440" />
+            </label>
+          </section>
+
+          <section class="settings-section">
+            <h4><span class="settings-section-dot"></span><span data-i18n="settings.aboutSection">关于</span></h4>
+            <p id="about-info" class="hint"></p>
+            <div class="row" style="margin-top: 10px">
+              <button id="btn-uninstall" class="ui-btn tiny danger-text hidden" data-i18n="settings.uninstall">
+                卸载应用
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="ui-toast hidden"></div>
+  </body>
+</html>
