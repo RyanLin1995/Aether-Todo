@@ -1,77 +1,127 @@
-# Aether Todo（心流待办）
+<p align="center">
+  <img src="build/icon.png" width="112" alt="Aether Todo" />
+</p>
 
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-Windows%20x64-lightgrey)](#)
-[![Electron](https://img.shields.io/badge/Electron-44-47848F?logo=electron&logoColor=white)](#)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)](#)
-[![Bun](https://img.shields.io/badge/bun-1.4-f472b6?logo=bun&logoColor=white)](#)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)](#)
+<h1 align="center">Aether Todo · AI 待办</h1>
 
-对标 Awwwards / FWA 顶级水准打造的先锋**液态玻璃（Liquid Glass）**待办与心流专注体验。用自然口语描述一件事，自动拆解为带时间、优先级、类别的结构化任务，并具备可贴边吸附微型悬浮窗与深度可配置番茄钟。无需注册、无需登录、零遥测、纯本地。
+<p align="center">
+  <b>Vibe coding 时代的个人时间控制台</b><br/>
+  一个人同时管着好几个 AI Agent，别把自己弄丢了<br/>
+  一句话丢进待办，自动排好优先级和时间，到点提醒你
+</p>
 
-说一句 **「明天下午三点前把周报发给老板，很急」** → 解析出截止时间、优先级（高，附判定理由）、类别（工作）→ 确认入库 → 准时弹提醒。
+<p align="center">
+  <a href="https://github.com/RyanLin1995/Aether-Todo/releases/latest"><img src="https://img.shields.io/github/v/release/RyanLin1995/Aether-Todo?style=flat-square&label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC&color=7C3AED" alt="Latest Release"></a>
+  <a href="https://github.com/RyanLin1995/Aether-Todo/releases"><img src="https://img.shields.io/github/downloads/RyanLin1995/Aether-Todo/total?style=flat-square&color=7C3AED&label=%E4%B8%8B%E8%BD%BD%E9%87%8F" alt="Downloads"></a>
+  <img src="https://img.shields.io/badge/platform-Windows%20x64-blue?style=flat-square" alt="Platform">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square" alt="License"></a>
+</p>
 
-English documentation: [README.md](README.md)
+<p align="center">
+  <a href="https://github.com/RyanLin1995/Aether-Todo/releases/latest">下载</a> ·
+  <a href="./README.md">English</a>
+</p>
 
-![Aether Todo 主界面](tests/screenshots/audit/01-main-initial.png)
+![Aether Todo 主界面](docs/screenshots/main.png)
 
-## 功能
+## 为什么做这个
 
-- 💧 **液态玻璃设计体系** —— 先锋水光折射、环境流体光斑、晶质双层高光边框、物理弹性触感
-- 🏝️ **苹果先锋灵动岛（Dynamic Island）悬浮窗** —— 胶囊态与展开态无缝弹性形态切换，灵动脉冲呼吸环、倒计时细流光进度条、任务与操作微药丸
-- 💎 **纯净矢量体系** —— 界面全程统一采用 Lucide 矢量图标，彻底告别 Emoji 表情符号
-- ↕️ **任务拖拽自定义排序** —— 鼠标拖动专用手柄自由调整待办先后顺序，实时微光指示线，落盘持久化
-- 🍅 **全能番茄钟（支持暂停/继续）** —— 专注时长自由配置，支持暂停、恢复与提前结束二次确认，已完成时长自动统计
-- 📧 **邮件与文件拖拽提炼** —— 支持将 `.eml` 邮件或工作文档直接拖入 AI 助手，自动智能提炼待办任务
-- 💭 **AI 深度思考等待动效** —— 任务解析过程伴随先锋液态三点跳跃波动动效，带来沉浸式心流反馈
-- ⚙️ **整体液态透明度控制** —— 支持设置主界面毛玻璃与灵动岛悬浮窗的整体透明度，滑动实时生效
-- 📐 **流式自适应排版** —— 全响应式任务卡片与自适应固定操作药丸，从 1000px 紧凑分屏到 4K 超宽屏自适应缩放无变形
-- 🤖 **自然语言建任务** —— 对话式输入，一句话可拆成多条任务
-- 🎯 **自动判优先级** —— 高/中/低，每条附人类可读的判定理由
-- 🗂 **自动分类** —— 工作 · 学习 · 生活 · 健康 · 财务 · 社交 · 其他
-- ⏰ **到点提醒** —— 系统通知、支持「提前提醒」，托盘后台持续工作
-- 💬 **双向智能对话** —— 「周报我已经写完了」→ 自动找到任务并标记完成
-- 🌐 **双语界面** —— 简体中文 / English，设置里即切即用
-- 🌓 **深色模式** —— 浅色 / 深色 / 跟随系统，液态折射光泽随主题无缝流动
-- 📊 **统计大屏** —— 本周 / 本月 / 今年的完成量、趋势柱状图与分类环形进度
-- 🔌 **网络代理** —— 大模型请求直连、跟随系统代理，或走自定义 HTTP 代理
-- 🔒 **纯本地隐私** —— 单个人类可读的 JSON 文件存储，原子写入，零遥测
+Vibe coding 之后，我发现自己变成了「多线程」。
 
-**有 Key 没 Key 都能用。** AI 层双引擎：任意 OpenAI 兼容大模型（DeepSeek、通义、智谱、OpenAI、本地 Ollama…）+ 内置本地规则引擎（中英文时间解析 + 优先级关键词 + 类别词典）。没配 Key、网络出错或超时 → 自动降级本地解析，永不下线。
+- 左边 Claude Code 在跑任务，右边 Codex 在改另一个仓库，脑子里还压着「晚点回老板消息」「记得买牛奶」。
+- 注意力被切得很碎。一天下来 Agent 干了一堆活，我自己却什么都没记住。
+- 真正缺的不是更多 Agent，而是一个能**重新安排自己的时间、并且会把你叫回来**的东西。
 
-## 快速开始
+于是有了 Aether Todo —— 一个跑在 Windows 上的本地优先待办 + 专注工具。
+
+把脑子里那些零碎的「等下要做」一句话丢进来，它帮你排好优先级、盯着进度、到点提醒。不注册、不联网、不上传，数据全在你本机。
+
+## 它长什么样
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/island.png" alt="灵动岛悬浮窗"></td>
+<td width="50%"><img src="docs/screenshots/notification.png" alt="到点提醒"></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/stats.png" alt="统计"></td>
+<td><img src="docs/screenshots/main-dark.png" alt="深色模式"></td>
+</tr>
+</table>
+
+## 一句话 → 一条任务
+
+说 / 打字一句 **「明天下午三点前把周报发给老板，很急」**：
+
+```
+截止时间   明天 15:00
+优先级     高    （理由：说了「很急」，且今天截止）
+类别       工作
+```
+
+点「加入待办」→ 到点自动提醒。想反悔也行：说「周报我已经写完了」，它会自己找到那条任务标成完成。
+
+## 主要功能
+
+- **自然语言建任务** —— 说人话就行，一句话能拆成好几条
+- **自动判优先级 + 分类** —— 高/中/低，每条附一句人话理由
+- **到点提醒** —— 支持「提前提醒」，托盘后台常驻，关窗照样响
+- **番茄钟（可暂停）** —— 专注时长自定，支持暂停 / 恢复
+- **灵动岛悬浮窗** —— 贴边吸附，随时瞄一眼当前任务和倒计时
+- **统计大屏** —— 本周 / 本月 / 今年的完成量、趋势、分类分布
+- **液态玻璃界面** —— 深浅色可选，整体透明度实时拖动
+- **中英双语** —— 界面、AI 回复、提醒文案全都跟着切
+- **纯本地** —— 单个人类可读的 JSON 文件，原子写入，零遥测
+- **有 Key 没 Key 都能用** —— 任意 OpenAI 兼容大模型（DeepSeek、通义、智谱、Ollama…）；没配 Key 或网络出错，自动降级到内置本地规则引擎，永不下线
+
+## 下载
+
+Windows x64，双击安装，安装向导支持**中英文选择**。
+
+**[下载最新版本](https://github.com/RyanLin1995/Aether-Todo/releases/latest)**
+
+> 安装包未做商业代码签名，首次运行 Windows SmartScreen 可能提示，点「更多信息 → 仍要运行」即可。
+
+## 自己跑一遍
 
 ```bash
-bun install                                        # 安装依赖
+bun install                                        # 装依赖
 ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ \
-  node node_modules/electron/install.js            # 补齐 Electron 二进制（Bun 不跑 postinstall）
+  node node_modules/electron/install.js            # 补 Electron 二进制（Bun 不跑 postinstall）
 bun run start                                      # 构建 + 启动
 ```
 
-> [!WARNING]
-> 若终端存在 `ELECTRON_RUN_AS_NODE=1`，`electron.exe` 会退化成普通 Node。`bun run start` 已通过 `scripts/launch.js` 自动清理。
-
-### 普通用户
-
-直接运行 **`dist/Aether Todo-1.0.0-Setup.exe`** —— NSIS 安装向导支持**中英文选择**，自动创建桌面与开始菜单快捷方式，并提供标准卸载程序（也可在应用内「设置 → 关于 → 卸载应用」触发）。
-
-## 常用命令
-
-| 命令 | 说明 |
+| 命令 | 干嘛的 |
 |---|---|
-| `bun run start` / `dev` | 构建（TS → 产物）并启动 |
-| `bun run typecheck` | `tsc --noEmit`（strict 模式） |
-| `bun run test` | 逻辑与边界测试（存储、中英时间解析、优先级/分类、提醒、i18n 等） |
-| `node scripts/verify-all-buttons.js` | 全量按钮点击与成功/失败全状态自动化审查（22 个关键交互节点） |
-| `bun run icon` | 重新生成应用图标 |
-| `bun run build` | 全量打包产出 `dist/Aether Todo-1.0.0-Setup.exe` |
+| `bun run start` | 构建并启动 |
+| `bun run typecheck` | TypeScript 严格类型检查 |
+| `bun run test` | 逻辑与边界测试 |
+| `bun run build` | 打包成 `dist/*-Setup.exe` |
 
-## AI 配置（可选）
+## 技术栈
 
-设置 → **AI 大模型**：接口地址、API Key、模型名称，以及**网络代理**（不使用 / 跟随系统 / 自定义 HTTP）。「测试连接」会验证整条链路；Key 留空则始终使用本地规则引擎。
+Electron 44 · TypeScript（strict）· Bun · 纯本地 JSON 存储 · 零原生依赖。
 
 <details>
-<summary>模型输出契约（严格 JSON）</summary>
+<summary>AI 配置 / 项目结构 / 模型输出契约</summary>
+
+**AI 配置**：设置 → AI 大模型，填接口地址、API Key、模型名，可选网络代理（直连 / 跟随系统 / 自定义 HTTP）。Key 留空即长期使用本地规则引擎。
+
+**项目结构**
+
+```
+src/
+  shared/types.ts      主进程 / 渲染进程共享类型
+  main/                Electron 主进程：窗口、托盘、通知、存储、AI、提醒调度
+  preload.ts           contextBridge 安全 API
+  renderer/            界面：任务、助手、设置、统计、番茄钟
+build/                 图标源与打包资源
+scripts/               构建、图标生成、诊断脚本
+tests/                 逻辑测试 + CDP 驱动的 GUI 测试
+docs/screenshots/      README 配图
+```
+
+**模型输出契约（严格 JSON，非 JSON 也能优雅兜底）**
 
 ```json
 {
@@ -80,7 +130,6 @@ bun run start                                      # 构建 + 启动
   "tasks": [
     {
       "title": "把周报发给老板",
-      "note": "",
       "category": "工作",
       "priority": "high",
       "priorityReason": "老板在等且今天截止",
@@ -92,64 +141,8 @@ bun run start                                      # 构建 + 启动
 }
 ```
 
-`intent`：`create`（新增）· `complete`（完成）· `list`（查询）· `chat`（追问）。输出非 JSON 也能优雅兜底。
+`intent`：`create`（新增）· `complete`（完成）· `list`（查询）· `chat`（追问）。
 </details>
-
-## 项目结构
-
-```
-src/
-  shared/types.ts      主进程/渲染进程共享类型
-  main/                Electron 主进程（TypeScript）
-    main.ts            窗口、托盘、通知、单实例锁
-    ipc.ts             全部 IPC 接口
-    store.ts           JSON 文件数据库（原子写入）
-    ai.ts              双引擎（远端大模型 + 本地规则）
-    prompt.ts          双语系统提示词
-    i18n.ts            主进程文案
-    reminder.ts        到期任务调度器
-    crypto.ts          ID 生成、密码哈希
-  preload.ts           contextBridge 暴露的安全 API
-  renderer/
-    index.html · styles.css
-    src/               app.ts · api.ts · tasks.ts · assistant.ts · settings.ts · i18n.ts · utils.ts
-dist-electron/         主进程/preload 构建产物（自动生成）
-src/renderer-dist/     渲染层构建产物（自动生成）
-scripts/               launch.js · make-icon.js · diag.js
-tests/                 run.ts（逻辑测试）· e2e.js（GUI 测试）· screenshots/
-```
-
-## 测试
-
-```bash
-bun run typecheck   # strict TS 零错误
-bun run test        # 51/51
-bun run test:e2e    # 41/41 —— 驱动真实窗口
-```
-
-E2E 覆盖：免登录启动 → AI 解析 → 确认入库 → 完成/筛选 → 设置 → 提醒 → 语言切换 → 刷新持久化。也可直接对打包后的 exe 跑：
-
-```bash
-AITODO_BIN="dist/win-unpacked/AI待办.exe" node tests/e2e.js
-```
-
-## 国际化与主题（i18n & theming）
-
-界面内置简体中文（默认）与 English，在「设置 → 界面语言」随时切换，无需重启。作用于界面、本地引擎回复与判定理由、大模型提示词、系统通知、托盘菜单、窗口标题、日期格式。类别内部存中文 key，显示时翻译。
-
-主题基于 daisyUI 5 设计令牌：**浅色 / 深色 / 跟随系统**，在「设置 → 主题」切换并本地持久化。
-
-新增语言：在 `src/main/i18n.ts` 与 `src/renderer/src/i18n.ts` 各加一份 key 一致的文案表（单元测试强制 key 对齐），再注册到 `SUPPORTED_LOCALES`。
-
-## 构建与数据
-
-```bash
-bun run build   # → dist/AI Todo App-1.0.0-Setup.exe（约 107 MB，NSIS，x64）
-```
-
-- 数据位置：`%APPDATA%\ai-todo\data\db.json` —— 单文件、原子写入，除你配置的大模型请求外数据不出本机。
-- 二进制走 npmmirror 镜像（`ELECTRON_MIRROR`、`ELECTRON_BUILDER_BINARIES_MIRROR`）。
-- 安装包未做商业代码签名，首次运行 SmartScreen 可能提示；对外分发需配置 `CSC_LINK` / `CSC_KEY_PASSWORD`。
 
 ## 许可证
 
@@ -157,4 +150,4 @@ bun run build   # → dist/AI Todo App-1.0.0-Setup.exe（约 107 MB，NSIS，x64
 
 ## 致谢
 
-本应用由 AI 助手 **WorkBuddy** 端到端完成：架构选型、双引擎 AI、界面、CDP 驱动的 GUI 测试、图标生成与安装程序打包。底层站在 Electron、Bun、electron-builder 与 Node.js 生态的肩膀上。
+本应用由 AI 助手 **WorkBuddy** 端到端完成：架构选型、双引擎 AI、界面、CDP GUI 测试、图标生成与安装包打包流水线。底层站在 Electron、Bun、electron-builder 与 Node.js 生态的肩膀上。
