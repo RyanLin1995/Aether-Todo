@@ -26,6 +26,17 @@ scripts/_*.mjs
 Thumbs.db
 *.log
 
+# miora AI tool artifacts (not part of the app; build never references them)
+aether-todo-icon_assets/
+aether-todo-icon.miora
+
+# icon generation intermediate (icon-source.png is the kept source)
+build/icon-src/original-32.png
+
+# icon design preview sheets (regenerable: node scripts/make-icon-minimal.js)
+build/icon-preview.png
+build/icon-minimal-preview.png
+
 # --- Kept in repo (source of truth) ---
 # src/  scripts/  build/  package.json  bun.lock  bunfig.toml  tsconfig.json
-# LICENSE  README.md  README_CN.md  aether-todo-icon_assets/  aether-todo-icon.miora
+# LICENSE  README.md  README_CN.md  build/icon-src/icon-source.png
