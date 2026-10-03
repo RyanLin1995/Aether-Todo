@@ -11,8 +11,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/RyanLin1995/Aether-Todo/releases/latest"><img src="https://img.shields.io/github/v/release/RyanLin1995/Aether-Todo?style=flat-square&label=latest&color=7C3AED" alt="Latest Release"></a>
-  <a href="https://github.com/RyanLin1995/Aether-Todo/releases"><img src="https://img.shields.io/github/downloads/RyanLin1995/Aether-Todo/total?style=flat-square&color=7C3AED&label=downloads" alt="Downloads"></a>
+  <a href="https://github.com/RyanLin1995/Aether-Todo/releases/latest"><img src="https://img.shields.io/github/v/release/RyanLin1995/Aether-Todo?style=flat-square&label=latest&color=4F46E5" alt="Latest Release"></a>
+  <a href="https://github.com/RyanLin1995/Aether-Todo/releases"><img src="https://img.shields.io/github/downloads/RyanLin1995/Aether-Todo/total?style=flat-square&color=4F46E5&label=downloads" alt="Downloads"></a>
   <img src="https://img.shields.io/badge/platform-Windows%20x64-blue?style=flat-square" alt="Platform">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square" alt="License"></a>
 </p>
