@@ -13,7 +13,7 @@ import { DEFAULT_SETTINGS } from './store';
 import type { Store } from './store';
 import type { ReminderService, NotifierPayload } from './reminder';
 import type { PomodoroService } from './pomodoro';
-import type { AppSettings, IpcResult, NotifyPayload, TaskPatch, User } from '../shared/types';
+import type { AppSettings, IpcResult, NotifyPayload, RepeatScope, TaskPatch, User } from '../shared/types';
 
 const OK = <T>(data: T): IpcResult<T> => ({ ok: true, data });
 const FAIL = (error: string): IpcResult<never> => ({ ok: false, error });
@@ -112,6 +112,35 @@ function registerIpc({
     return OK(done);
   }));
 
+  // ---------------- 重复任务 ----------------
+  /** 勾选完成 / 取消完成：重复系列会自动推进或回滚下一期 */
+  ipcMain.handle('tasks:toggleComplete', safe(async (u, { id, completed }: { id: string; completed: boolean }) => {
+    const res = store.toggleComplete(u.id, String(id), Boolean(completed));
+    if (!res) return FAIL('任务不存在');
+    broadcast('tasks:changed', null);
+    return OK(res);
+  }));
+
+  /** 编辑重复任务：scope = 'once' 仅本次 / 'series' 整个系列 */
+  ipcMain.handle('tasks:updateScoped', safe(async (u, { id, patch, scope }: { id: string; patch: TaskPatch; scope: RepeatScope }) => {
+    const updated = store.updateTaskScoped(u.id, String(id), patch || {}, scope === 'series' ? 'series' : 'once');
+    if (!updated) return FAIL('任务不存在');
+    broadcast('tasks:changed', null);
+    return OK(updated);
+  }));
+
+  /** 删除重复任务：scope = 'once' 仅本次 / 'series' 整个系列 */
+  ipcMain.handle('tasks:deleteScoped', safe(async (u, { id, scope }: { id: string; scope: RepeatScope }) => {
+    const res = store.deleteTaskScoped(u.id, String(id), scope === 'series' ? 'series' : 'once');
+    broadcast('tasks:changed', null);
+    return OK({ deleted: res.deleted, next: res.next });
+  }));
+
+  /** 取任务所属重复系列（普通任务返回 null），编辑弹窗用于回填规则 */
+  ipcMain.handle('series:forTask', safe(async (u, { id }: { id: string }) => {
+    return OK(store.getSeriesForTask(u.id, String(id)));
+  }));
+
   ipcMain.handle('tasks:reorder', safe(async (u, { ids }: { ids: string[] }) => {
     const ok = store.reorderTasks(u.id, ids || []);
     broadcast('tasks:changed', null);
@@ -192,11 +221,15 @@ function registerIpc({
   ipcMain.handle('settings:update', safe(async (u, { patch }: { patch?: Partial<AppSettings> }) => {
     const next = store.updateSettings(u.id, patch || {});
     if (patch && patch.locale && onLocaleChange) onLocaleChange(patch.locale);
-    // 外观类设置（整体液态程度 / 主题 / 语言）变化后立即同步灵动岛，
-    // 使其背景与按钮的玻璃材质跟主界面保持同一套材质参数
+    // 外观类设置（整体液态程度 / 主题 / 语言）与番茄钟时长变化后立即同步灵动岛：
+    // 前者让背景与按钮的玻璃材质跟主界面保持同一套材质参数，
+    // 后者让岛内「开始专注」直接使用最新时长（否则岛内缓存的仍是旧值）。
     if (
       patch &&
-      (patch.floatOpacity !== undefined || patch.liquidOpacity !== undefined || patch.locale !== undefined)
+      (patch.floatOpacity !== undefined ||
+        patch.liquidOpacity !== undefined ||
+        patch.locale !== undefined ||
+        patch.pomodoroMinutes !== undefined)
     ) {
       broadcast('float:state-changed', null);
     }

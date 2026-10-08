@@ -7,6 +7,13 @@ const api = {
   createTasks: (tasks: unknown[]) => ipcRenderer.invoke('tasks:createMany', { tasks }),
   updateTask: (id: string, patch: unknown) => ipcRenderer.invoke('tasks:update', { id, patch }),
   deleteTask: (id: string) => ipcRenderer.invoke('tasks:delete', { id }),
+  // 重复任务：勾选完成（自动推进下一期）/ 按作用域编辑 / 按作用域删除
+  toggleCompleteTask: (id: string, completed: boolean) =>
+    ipcRenderer.invoke('tasks:toggleComplete', { id, completed }),
+  updateTaskScoped: (id: string, patch: unknown, scope: string) =>
+    ipcRenderer.invoke('tasks:updateScoped', { id, patch, scope }),
+  deleteTaskScoped: (id: string, scope: string) => ipcRenderer.invoke('tasks:deleteScoped', { id, scope }),
+  seriesForTask: (id: string) => ipcRenderer.invoke('series:forTask', { id }),
   bulkComplete: (ids: string[]) => ipcRenderer.invoke('tasks:bulkComplete', { ids }),
   reorderTasks: (ids: string[]) => ipcRenderer.invoke('tasks:reorder', { ids }),
   stats: () => ipcRenderer.invoke('tasks:stats'),

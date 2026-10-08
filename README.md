@@ -67,6 +67,7 @@ Hit "Add" → you get a reminder on time. Changed your mind? Say *"I already fin
 - **Automatic priority & category** — High / Medium / Low, each with a plain-language reason
 - **On-time reminders** — "remind me early" support, tray service keeps running even after you close the window
 - **Pomodoro (pause / resume)** — configurable focus length
+- **Recurring tasks** — daily / weekly / monthly / yearly, with custom intervals (every 2 weeks) and weekday picks; completing one occurrence spawns the next, each with its own completion state and notes; edit / delete asks "this occurrence" or "the whole series"
 - **Dynamic Island widget** — snaps to the screen edge; glance at the current task and countdown anytime
 - **Statistics dashboard** — weekly / monthly / yearly completion, trends, category breakdown
 - **Liquid Glass UI** — light / dark themes, real-time opacity slider

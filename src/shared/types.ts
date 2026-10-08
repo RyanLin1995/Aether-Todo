@@ -27,6 +27,8 @@ export interface Task {
   /** 自定义排序序号（拖动排序使用） */
   order?: number;
   source: TaskSource;
+  /** 所属重复系列 id；null / 缺失 = 普通一次性任务（老数据天然兼容） */
+  seriesId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -47,7 +49,64 @@ export type TaskPatch = Partial<
     | 'order'
     | 'source'
   >
->;
+> & {
+  /** 仅在创建任务时生效：附带重复规则 → 自动建立重复系列并生成首实例 */
+  repeat?: RepeatRule | null;
+};
+
+// ---------------- 重复任务 ----------------
+
+/** 重复频率 */
+export type RepeatFreq = 'day' | 'week' | 'month' | 'year';
+
+/** 重复系列的结束方式 */
+export type RepeatEndMode = 'never' | 'until' | 'count';
+
+/**
+ * 重复规则（纯数据，可被主进程与渲染进程共用）
+ * 日期一律以「本地日历日 YYYY-MM-DD」表达，避免 UTC 偏移导致跨日错位。
+ */
+export interface RepeatRule {
+  freq: RepeatFreq;
+  /** 间隔：每 N 个周期，>= 1 */
+  interval: number;
+  /** freq='week' 时生效：ISO 周几 1=周一 … 7=周日；空数组表示沿用起始日的周几 */
+  weekdays: number[];
+  /** 生效起始日（YYYY-MM-DD，本地日历日） */
+  startDate: string;
+  endMode: RepeatEndMode;
+  /** endMode='until'：结束日期（YYYY-MM-DD，含当天） */
+  endDate: string | null;
+  /** endMode='count'：系列总共产生多少期（含首期） */
+  endCount: number | null;
+}
+
+/**
+ * 重复系列：保存「模板」与「规则」，实例都是普通 Task（通过 task.seriesId 关联）
+ */
+export interface RepeatSeries {
+  id: string;
+  userId: string;
+  title: string;
+  note: string;
+  priority: Priority;
+  priorityReason: string;
+  category: string;
+  rule: RepeatRule;
+  /** 每期的时刻 HH:mm（来自首实例 dueAt）；null = 09:00 */
+  timeOfDay: string | null;
+  /** 提前提醒分钟数；null = 不提醒 */
+  remindLeadMinutes: number | null;
+  /** 已生成的期数（含首期，用于 endMode='count' 判定） */
+  generatedCount: number;
+  /** 已完成的期数（统计用，不参与结束判定） */
+  completedCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** 编辑 / 删除重复任务时的作用范围 */
+export type RepeatScope = 'once' | 'series';
 
 export interface User {
   id: string;

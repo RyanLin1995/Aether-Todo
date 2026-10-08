@@ -47,6 +47,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Bot,
+  Repeat,
+  CalendarDays,
   type IconNode,
 } from 'lucide';
 
@@ -94,6 +96,8 @@ export const ICONS = {
   chevronRight: ChevronRight,
   chevronLeft: ChevronLeft,
   bot: Bot,
+  repeat: Repeat,
+  calendarDays: CalendarDays,
 } as const;
 
 export type IconName = keyof typeof ICONS;

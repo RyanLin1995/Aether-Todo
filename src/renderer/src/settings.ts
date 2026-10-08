@@ -2,6 +2,7 @@
 import { $, toast, initTheme, setTheme, type ThemeChoice, icon } from './utils';
 import { t, setLocale } from './i18n';
 import { Settings, AI, App, FloatWindow } from './api';
+import { confirmDialog } from './dialog';
 import type { AppSettings } from '../../shared/types';
 
 /**
@@ -135,13 +136,20 @@ export function mountSettings({
     void save({ reminderLeadMinutes: Math.max(0, Number(lead.value) || 0) })
   );
 
-  // 番茄时钟时长变更
+  /**
+   * 番茄钟时长变更：写库后立即生效。
+   * 主进程会在 settings:update 收到 pomodoroMinutes 时广播 float:state-changed，
+   * 灵动岛据此刷新缓存的时长（岛内「开始专注」与大屏顶栏使用同一份值）。
+   */
   if (pomoMinutes) {
-    pomoMinutes.addEventListener('change', () => {
-      const val = Math.max(1, Math.min(180, Number(pomoMinutes.value) || 25));
+    const commitPomo = () => {
+      const val = Math.max(1, Math.min(180, Math.round(Number(pomoMinutes.value) || 25)));
       pomoMinutes.value = String(val);
       void save({ pomodoroMinutes: val });
-    });
+    };
+    pomoMinutes.addEventListener('change', commitPomo);
+    // 输入完成后直接点关闭按钮的场景：blur 时兜底提交一次
+    pomoMinutes.addEventListener('blur', commitPomo);
   }
 
   // 整体液态程度调节（主界面 + 灵动岛统一材质）：input 即时预览，change 持久化保存
@@ -223,7 +231,15 @@ export function mountSettings({
 
   // 卸载：仅安装版可用（由 app:info 的 canUninstall 控制显隐）
   uninstallBtn.addEventListener('click', async () => {
-    if (!window.confirm(t('settings.uninstallConfirm'))) return;
+    const ok = await confirmDialog({
+      title: t('settings.uninstall'),
+      message: t('settings.uninstallConfirm'),
+      confirmText: t('settings.uninstall'),
+      cancelText: t('task.cancel'),
+      iconName: 'trash',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await App.uninstall();
     } catch (err) {
@@ -231,10 +247,8 @@ export function mountSettings({
     }
   });
 
+  // 关闭入口只有右上角的关闭按钮：点击空白区域不关闭，避免误触丢失未保存的输入
   closeBtn.addEventListener('click', () => modal.classList.add('hidden'));
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) modal.classList.add('hidden');
-  });
 
   return {
     async open() {

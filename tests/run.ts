@@ -592,6 +592,313 @@ console.log('\n[10] 任务拖拽重排与番茄钟暂停/恢复');
   });
 }
 
+// ============ 11. 重复任务 ============
+console.log('\n[11] 重复任务（日期计算与系列实例）');
+import { nextOccurrence, normalizeRule, toDateKey, isCountExhausted } from '../src/shared/recurrence';
+import type { RepeatRule } from '../src/shared/types';
+
+const mkRule = (over: Partial<RepeatRule> = {}): RepeatRule =>
+  normalizeRule({
+    freq: 'day',
+    interval: 1,
+    weekdays: [],
+    startDate: '2026-01-01',
+    endMode: 'never',
+    endDate: null,
+    endCount: null,
+    ...over,
+  }) as RepeatRule;
+
+/** 本地日历日（YYYY-MM-DD）→ Date，避免 UTC 解析错位 */
+const localDay = (key: string): Date => {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
+};
+
+const nextKey = (from: string, r: RepeatRule): string | null => {
+  const n = nextOccurrence(localDay(from), r);
+  return n ? toDateKey(n) : null;
+};
+
+test('按天重复：间隔 N 天', () => {
+  assert.strictEqual(nextKey('2026-03-01', mkRule({ freq: 'day', interval: 2, startDate: '2026-03-01' })), '2026-03-03');
+  assert.strictEqual(nextKey('2026-12-30', mkRule({ freq: 'day', interval: 1, startDate: '2026-12-01' })), '2026-12-31');
+});
+
+test('按天重复：跨月与跨年', () => {
+  assert.strictEqual(nextKey('2026-02-28', mkRule({ freq: 'day', interval: 1, startDate: '2026-02-01' })), '2026-03-01');
+  assert.strictEqual(nextKey('2026-12-31', mkRule({ freq: 'day', interval: 1, startDate: '2026-12-01' })), '2027-01-01');
+});
+
+test('按周重复：同周内顺延到下一个指定周几', () => {
+  // 2026-03-02 是周一；指定周一 + 周四
+  const r = mkRule({ freq: 'week', interval: 1, weekdays: [1, 4], startDate: '2026-03-02' });
+  assert.strictEqual(nextKey('2026-03-02', r), '2026-03-05');
+  assert.strictEqual(nextKey('2026-03-05', r), '2026-03-09');
+});
+
+test('按周重复：每 2 周时跳过中间那一周', () => {
+  const r = mkRule({ freq: 'week', interval: 2, weekdays: [1], startDate: '2026-03-02' });
+  assert.strictEqual(nextKey('2026-03-02', r), '2026-03-16');
+  assert.strictEqual(nextKey('2026-03-16', r), '2026-03-30');
+});
+
+test('按周重复：多天 + 跨月', () => {
+  const r = mkRule({ freq: 'week', interval: 1, weekdays: [5, 7], startDate: '2026-03-01' });
+  assert.strictEqual(nextKey('2026-03-27', r), '2026-03-29'); // 周五 → 周日
+  assert.strictEqual(nextKey('2026-03-29', r), '2026-04-03'); // 周日 → 下周五（跨月）
+});
+
+test('按月重复：31 日在短月回退到月末，且不漂移', () => {
+  const r = mkRule({ freq: 'month', interval: 1, startDate: '2026-01-31' });
+  assert.strictEqual(nextKey('2026-01-31', r), '2026-02-28', '1/31 → 2/28（2026 非闰年）');
+  assert.strictEqual(nextKey('2026-02-28', r), '2026-03-31', '回退后仍锚定 31 日，不漂移到 3/28');
+  assert.strictEqual(nextKey('2026-03-31', r), '2026-04-30');
+});
+
+test('按月重复：闰年 2 月有 29 日', () => {
+  const r = mkRule({ freq: 'month', interval: 1, startDate: '2028-01-31' });
+  assert.strictEqual(nextKey('2028-01-31', r), '2028-02-29');
+});
+
+test('按月重复：间隔 N 个月可跨年', () => {
+  const r = mkRule({ freq: 'month', interval: 3, startDate: '2026-11-30' });
+  assert.strictEqual(nextKey('2026-11-30', r), '2027-02-28');
+});
+
+test('按年重复：2/29 在平年回退到 2/28，闰年恢复', () => {
+  const r = mkRule({ freq: 'year', interval: 1, startDate: '2024-02-29' });
+  assert.strictEqual(nextKey('2024-02-29', r), '2025-02-28');
+  assert.strictEqual(nextKey('2025-02-28', r), '2026-02-28');
+  assert.strictEqual(nextKey('2027-02-28', r), '2028-02-29');
+});
+
+test('结束条件：到指定日期（含当天）后停止', () => {
+  const r = mkRule({ freq: 'day', interval: 1, startDate: '2026-03-01', endMode: 'until', endDate: '2026-03-10' });
+  assert.strictEqual(nextKey('2026-03-09', r), '2026-03-10');
+  assert.strictEqual(nextKey('2026-03-10', r), null, '已到结束日不再生成');
+});
+
+test('结束条件：完成 N 期后停止', () => {
+  const r = mkRule({ freq: 'day', interval: 1, startDate: '2026-05-01', endMode: 'count', endCount: 3 });
+  assert.strictEqual(isCountExhausted(r, 1), false);
+  assert.strictEqual(isCountExhausted(r, 2), false);
+  assert.strictEqual(isCountExhausted(r, 3), true, '已生成 3 期即停止');
+});
+
+test('非法规则被拒绝（不重复）', () => {
+  assert.strictEqual(normalizeRule(null), null);
+  assert.strictEqual(normalizeRule({ freq: 'week' }), null, '缺少起始日');
+  assert.strictEqual(normalizeRule({ freq: 'hello', startDate: '2026-01-01' }), null, '非法频率');
+  assert.strictEqual(normalizeRule({ freq: 'day', startDate: '2026-02-31' }), null, '非法日期');
+  assert.strictEqual(
+    normalizeRule({ freq: 'day', startDate: '2026-05-01', endMode: 'until', endDate: '2026-04-01' }),
+    null,
+    '结束日早于起始日'
+  );
+});
+
+test('周几列表去重排序，空列表时沿用起始日的周几', () => {
+  const r = normalizeRule({ freq: 'week', weekdays: [3, 1, 3, 7], startDate: '2026-03-04' }) as RepeatRule;
+  assert.deepStrictEqual(r.weekdays, [1, 3, 7]);
+  const fallback = normalizeRule({ freq: 'week', weekdays: [], startDate: '2026-03-04' }) as RepeatRule;
+  assert.deepStrictEqual(fallback.weekdays, [3], '2026-03-04 是周三');
+});
+
+test('本地日历日不受 UTC 解析影响', () => {
+  assert.strictEqual(toDateKey(new Date(2026, 0, 1, 23, 59)), '2026-01-01');
+  assert.strictEqual(toDateKey(new Date(2026, 11, 31, 0, 1)), '2026-12-31');
+});
+
+// ---- 系列与实例 ----
+{
+  const s = createStore(tmpDir());
+  const u = s.ensureLocalUser().id;
+
+  const weekly = s.createTask(u, {
+    title: '每周例会',
+    category: '工作',
+    priority: 'medium',
+    dueAt: '2026-03-02T10:00:00',
+    repeat: { freq: 'week', interval: 1, weekdays: [1], startDate: '2026-03-02', endMode: 'never', endDate: null, endCount: null },
+  });
+
+  test('创建重复任务：生成系列 + 首实例带 seriesId', () => {
+    assert.ok(weekly.seriesId, '首实例应关联系列');
+    assert.strictEqual(s.listSeries(u).length, 1);
+    assert.strictEqual(s.getSeriesForTask(u, weekly.id)?.title, '每周例会');
+  });
+
+  test('完成当前期后自动生成下一期（保持时刻）', () => {
+    const res = s.toggleComplete(u, weekly.id, true);
+    assert.ok(res, '应返回更新结果');
+    assert.ok(res!.next, '应推进出下一期');
+    assert.strictEqual(toDateKey(new Date(res!.next!.dueAt!)), '2026-03-09');
+    const t = new Date(res!.next!.dueAt!);
+    assert.strictEqual(`${t.getHours()}:${t.getMinutes()}`, '10:0', '时刻沿用首实例');
+    assert.strictEqual(res!.next!.completed, false);
+    assert.strictEqual(res!.next!.seriesId, weekly.seriesId);
+  });
+
+  test('取消完成后回滚已生成的后续期', () => {
+    const res = s.toggleComplete(u, weekly.id, false);
+    assert.ok(res);
+    assert.strictEqual(res!.next, null);
+    assert.strictEqual(s.listTasks(u, { status: 'all' }).length, 1, '后续期应被撤销');
+    assert.strictEqual(s.listSeries(u)[0].completedCount, 0);
+  });
+
+  test('每期保留独立的完成状态与备注', () => {
+    const done = s.toggleComplete(u, weekly.id, true);
+    const next = done!.next!;
+    s.updateTask(u, next.id, { note: '第二期备注' });
+    const first = s.getTask(u, weekly.id)!;
+    const second = s.getTask(u, next.id)!;
+    assert.strictEqual(first.completed, true);
+    assert.strictEqual(second.completed, false);
+    assert.strictEqual(second.note, '第二期备注');
+    assert.strictEqual(first.note, '', '第一期备注不受影响');
+    // 复位，供后续用例使用
+    s.toggleComplete(u, weekly.id, false);
+  });
+
+  test('仅本次编辑：只改这一期', () => {
+    const res = s.toggleComplete(u, weekly.id, true)!;
+    const next = res.next!;
+    s.updateTaskScoped(u, next.id, { title: '仅改这一期' }, 'once');
+    assert.strictEqual(s.getTask(u, next.id)!.title, '仅改这一期');
+    assert.strictEqual(s.getSeriesForTask(u, next.id)!.title, '每周例会', '系列模板不变');
+    s.toggleComplete(u, weekly.id, false);
+  });
+
+  test('整个系列编辑：同步未完成的期，已完成的期保留原样', () => {
+    const res = s.toggleComplete(u, weekly.id, true)!;
+    const next = res.next!;
+    s.updateTaskScoped(u, next.id, { title: '全员周会', note: '模板备注' }, 'series');
+    assert.strictEqual(s.getTask(u, next.id)!.title, '全员周会');
+    assert.strictEqual(s.getSeriesForTask(u, next.id)!.title, '全员周会');
+    assert.strictEqual(s.getTask(u, weekly.id)!.title, '每周例会', '已完成的期保持历史');
+    s.deleteTaskScoped(u, weekly.id, 'series');
+  });
+
+  test('仅本次删除：删当期并自动推进下一期', () => {
+    const daily = s.createTask(u, {
+      title: '日报',
+      dueAt: '2026-06-01T09:00:00',
+      repeat: { freq: 'day', interval: 1, weekdays: [], startDate: '2026-06-01', endMode: 'never', endDate: null, endCount: null },
+    });
+    const res = s.deleteTaskScoped(u, daily.id, 'once');
+    assert.strictEqual(res.deleted, true);
+    assert.ok(res.next, '应推进出下一期');
+    assert.strictEqual(toDateKey(new Date(res.next!.dueAt!)), '2026-06-02');
+    s.deleteTaskScoped(u, res.next!.id, 'series');
+  });
+
+  test('整个系列删除：清空所有期与系列', () => {
+    const t = s.createTask(u, {
+      title: '临时系列',
+      dueAt: '2026-07-01T09:00:00',
+      repeat: { freq: 'day', interval: 1, weekdays: [], startDate: '2026-07-01', endMode: 'never', endDate: null, endCount: null },
+    });
+    const res = s.toggleComplete(u, t.id, true)!;
+    assert.strictEqual(s.listTasks(u, { status: 'all' }).length, 2);
+    const del = s.deleteTaskScoped(u, t.id, 'series');
+    assert.strictEqual(del.deleted, true);
+    assert.strictEqual(del.next, null);
+    assert.strictEqual(s.listTasks(u, { status: 'all' }).length, 0);
+    assert.strictEqual(s.listSeries(u).length, 0);
+  });
+
+  test('完成 N 期后不再生成', () => {
+    const t = s.createTask(u, {
+      title: '三次打卡',
+      dueAt: '2026-05-01T09:00:00',
+      repeat: { freq: 'day', interval: 1, weekdays: [], startDate: '2026-05-01', endMode: 'count', endDate: null, endCount: 3 },
+    });
+    const a = s.toggleComplete(u, t.id, true)!;
+    assert.ok(a.next, '第 2 期');
+    const b = s.toggleComplete(u, a.next!.id, true)!;
+    assert.ok(b.next, '第 3 期');
+    const c = s.toggleComplete(u, b.next!.id, true)!;
+    assert.strictEqual(c.next, null, '达到 3 期后停止');
+    assert.strictEqual(s.listTasks(u, { status: 'all' }).length, 3);
+    s.deleteTaskScoped(u, t.id, 'series');
+  });
+
+  test('未填截止时间时，重复任务落在起始日 09:00', () => {
+    const t = s.createTask(u, {
+      title: '无截止时间的重复',
+      repeat: { freq: 'week', interval: 1, weekdays: [2], startDate: '2026-08-04', endMode: 'never', endDate: null, endCount: null },
+    });
+    const due = new Date(t.dueAt!);
+    assert.strictEqual(toDateKey(due), '2026-08-04');
+    assert.strictEqual(due.getHours(), 9);
+    s.deleteTaskScoped(u, t.id, 'series');
+  });
+
+  test('重复任务重启后仍可继续推进（持久化）', () => {
+    const t = s.createTask(u, {
+      title: '持久化系列',
+      dueAt: '2026-09-01T09:00:00',
+      repeat: { freq: 'month', interval: 1, weekdays: [], startDate: '2026-09-01', endMode: 'never', endDate: null, endCount: null },
+    });
+    s.toggleComplete(u, t.id, true);
+    s.reload();
+    const series = s.listSeries(u).find((x) => x.title === '持久化系列');
+    assert.ok(series, '系列应持久化');
+    assert.strictEqual(series!.generatedCount, 2);
+    const open = s.listTasks(u, { status: 'active' }).find((x) => x.seriesId === series!.id);
+    assert.ok(open, '下一期应持久化');
+    assert.strictEqual(toDateKey(new Date(open!.dueAt!)), '2026-10-01');
+    s.deleteTaskScoped(u, t.id, 'series');
+  });
+
+  test('v1 老数据（无 series 字段）加载后视为普通任务', () => {
+    const dirOld = tmpDir();
+    const legacy = {
+      version: 1,
+      users: [{ id: 'u1', username: '本机用户', passwordHash: '', createdAt: '2026-01-01T00:00:00.000Z' }],
+      sessions: [],
+      tasks: [
+        {
+          id: 't1',
+          userId: 'u1',
+          title: '老任务',
+          note: '',
+          priority: 'medium',
+          priorityReason: '',
+          category: '工作',
+          dueAt: null,
+          remindAt: null,
+          completed: false,
+          completedAt: null,
+          reminded: false,
+          pomodoros: 0,
+          source: 'manual',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      messages: [],
+      settings: {},
+    };
+    fs.writeFileSync(path.join(dirOld, 'db.json'), JSON.stringify(legacy));
+    const old = createStore(dirOld);
+    const list = old.listTasks('u1', { status: 'all' });
+    assert.strictEqual(list.length, 1);
+    assert.strictEqual(list[0].seriesId, null, '老任务 seriesId 应为 null');
+    assert.strictEqual(old.listSeries('u1').length, 0);
+    assert.strictEqual(old.getSeriesForTask('u1', 't1'), null);
+    // 老库可正常写入新结构
+    const t = old.createTask('u1', {
+      title: '升级后的重复任务',
+      dueAt: '2026-10-01T09:00:00',
+      repeat: { freq: 'day', interval: 1, weekdays: [], startDate: '2026-10-01', endMode: 'never', endDate: null, endCount: null },
+    });
+    assert.ok(t.seriesId);
+  });
+}
+
 // ============ 汇总 ============
 console.log(`\n${'='.repeat(48)}`);
 console.log(`通过 ${pass} 项，失败 ${fail} 项`);

@@ -6,9 +6,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { createId, createToken } from './crypto';
+import {
+  applyTimeOfDay,
+  extractTimeOfDay,
+  isCountExhausted,
+  nextOccurrence,
+  normalizeRule,
+  parseDateKey,
+  startOfDay,
+  toDateKey,
+} from '../shared/recurrence';
 import type {
   AppSettings,
   CompletedPoint,
+  RepeatRule,
+  RepeatScope,
+  RepeatSeries,
   Session,
   StoreStats,
   Task,
@@ -19,20 +32,26 @@ import type {
 
 const LOCAL_USERNAME = '本机用户';
 
+/** 当前数据格式版本：2 = 引入重复任务（series 表 + task.seriesId） */
+const DB_VERSION = 2;
+
 interface DbShape {
   version: number;
   users: User[];
   sessions: Session[];
   tasks: Task[];
+  /** 重复系列（模板 + 规则）；实例始终是普通 Task，通过 task.seriesId 关联 */
+  series: RepeatSeries[];
   messages: { id: string; userId: string; role: 'user' | 'assistant'; content: string; createdAt: string }[];
   settings: Record<string, Partial<AppSettings>>;
 }
 
 const EMPTY_DB: DbShape = {
-  version: 1,
+  version: DB_VERSION,
   users: [],
   sessions: [],
   tasks: [],
+  series: [],
   messages: [],
   settings: {},
 };
@@ -76,6 +95,20 @@ export interface Store {
   updateTask(userId: string, id: string, patch: TaskPatch): Task | null;
   reorderTasks(userId: string, taskIds: string[]): boolean;
   deleteTask(userId: string, id: string): boolean;
+  // ---------------- 重复任务 ----------------
+  /** 勾选完成 / 取消完成；完成时自动推进出下一期 */
+  toggleComplete(
+    userId: string,
+    id: string,
+    completed: boolean
+  ): { task: Task; next: Task | null } | null;
+  /** 编辑重复任务：scope='once' 只改这一期，scope='series' 同步整个系列 */
+  updateTaskScoped(userId: string, id: string, patch: TaskPatch, scope: RepeatScope): Task | null;
+  /** 删除重复任务：scope='once' 删这一期并推进下一期，scope='series' 删整个系列 */
+  deleteTaskScoped(userId: string, id: string, scope: RepeatScope): { deleted: boolean; next: Task | null };
+  /** 取任务所属的重复系列（普通任务返回 null） */
+  getSeriesForTask(userId: string, taskId: string): RepeatSeries | null;
+  listSeries(userId: string): RepeatSeries[];
   pullDueReminders(userId: string, now?: number): Task[];
   markReminded(ids: string[]): boolean;
   listUpcoming(userId: string, minutes?: number, now?: number): Task[];
@@ -96,11 +129,26 @@ function createStore(dataDir?: string): Store {
 
   let db: DbShape = load();
 
+  /**
+   * 版本迁移。
+   * v1 → v2：新增 series 表。老任务没有 seriesId 字段，normalizeTask 会补成 null，
+   * 即「普通一次性任务」，因此无需任何数据改写，纯增量兼容。
+   */
+  function migrate(db: DbShape): DbShape {
+    if (!Array.isArray(db.series)) db.series = [];
+    // 老任务没有 seriesId：补成 null，让「普通任务」的判定在读取时无需再判 undefined
+    for (const t of db.tasks) {
+      if (t && typeof t === 'object' && t.seriesId === undefined) t.seriesId = null;
+    }
+    db.version = DB_VERSION;
+    return db;
+  }
+
   function load(): DbShape {
     try {
       const raw = fs.readFileSync(file, 'utf8');
       const parsed = JSON.parse(raw) as Partial<DbShape>;
-      return { ...structuredClone(EMPTY_DB), ...parsed };
+      return migrate({ ...structuredClone(EMPTY_DB), ...parsed });
     } catch {
       return structuredClone(EMPTY_DB);
     }
@@ -234,13 +282,126 @@ function createStore(dataDir?: string): Store {
       pomodoros: Number.isFinite(Number(t.pomodoros)) ? Math.max(0, Math.floor(Number(t.pomodoros))) : 0,
       order: typeof t.order === 'number' && Number.isFinite(t.order) ? t.order : undefined,
       source: t.source === 'ai' ? 'ai' : 'manual',
+      seriesId: t.seriesId || null,
       createdAt: t.createdAt || now,
       updatedAt: now,
     };
   }
 
+  // ---------------- 重复系列 ----------------
+  function findSeries(userId: string, id: string | null | undefined): RepeatSeries | null {
+    if (!id) return null;
+    return db.series.find((s) => s.id === id && s.userId === userId) || null;
+  }
+
+  /** 该系列当前是否存在「未完成」的期 */
+  function hasOpenInstance(userId: string, seriesId: string, exceptId?: string): boolean {
+    return db.tasks.some(
+      (x) => x.userId === userId && x.seriesId === seriesId && !x.completed && x.id !== exceptId
+    );
+  }
+
+  /** 从模板 + 目标日期组装一个实例（不落库，由调用方 push） */
+  function buildInstance(series: RepeatSeries, dateLocal: Date): Task {
+    const now = new Date().toISOString();
+    const due = applyTimeOfDay(dateLocal, series.timeOfDay);
+    const remind =
+      series.remindLeadMinutes != null
+        ? new Date(due.getTime() - series.remindLeadMinutes * 60000).toISOString()
+        : null;
+    return normalizeTask({
+      id: createId('t'),
+      userId: series.userId,
+      title: series.title,
+      note: series.note,
+      priority: series.priority,
+      priorityReason: series.priorityReason,
+      category: series.category,
+      dueAt: due.toISOString(),
+      remindAt: remind,
+      completed: false,
+      completedAt: null,
+      reminded: false,
+      pomodoros: 0,
+      source: 'manual',
+      seriesId: series.id,
+      createdAt: now,
+      updatedAt: now,
+    } as Task);
+  }
+
+  /**
+   * 推进出下一期。
+   * @param fromDate 当前这一期的日期（取其本地日历日作为基准）
+   * @returns 新建的实例；系列已结束或已存在后续期时返回 null
+   */
+  function spawnNextInstance(series: RepeatSeries, fromDate: Date): Task | null {
+    const now = new Date().toISOString();
+    if (isCountExhausted(series.rule, series.generatedCount)) return null;
+    const next = nextOccurrence(fromDate, series.rule);
+    if (!next) return null;
+    // 幂等保护：该系列若已有未完成期落在下一期当天或之后，不重复生成
+    const floor = startOfDay(next).getTime();
+    const exists = db.tasks.some(
+      (x) =>
+        x.userId === series.userId &&
+        x.seriesId === series.id &&
+        !x.completed &&
+        x.dueAt &&
+        startOfDay(new Date(x.dueAt)).getTime() >= floor
+    );
+    if (exists) return null;
+    const task = buildInstance(series, next);
+    db.tasks.push(task);
+    series.generatedCount += 1;
+    series.updatedAt = now;
+    return task;
+  }
+
+  /** 建立重复系列；startSeed 为首实例的日期时间（用于推导时刻与提醒偏移） */
+  function createSeries(userId: string, payload: TaskPatch, rule: RepeatRule, startSeed: Date): RepeatSeries {
+    const now = new Date().toISOString();
+    const leadRaw = payload.remindAt ? (startSeed.getTime() - new Date(payload.remindAt).getTime()) / 60000 : null;
+    const series: RepeatSeries = {
+      id: createId('s'),
+      userId,
+      title: String(payload.title || '未命名任务').slice(0, 200),
+      note: payload.note ? String(payload.note).slice(0, 2000) : '',
+      priority: (ALLOWED_PRIORITY as string[]).includes(String(payload.priority))
+        ? (payload.priority as Task['priority'])
+        : 'medium',
+      priorityReason: payload.priorityReason ? String(payload.priorityReason).slice(0, 300) : '',
+      category: sanitizeCategory(payload.category),
+      rule,
+      timeOfDay: extractTimeOfDay(startSeed),
+      remindLeadMinutes: leadRaw != null && Number.isFinite(leadRaw) ? Math.max(0, Math.round(leadRaw)) : null,
+      generatedCount: 1,
+      completedCount: 0,
+      createdAt: now,
+      updatedAt: now,
+    };
+    db.series.push(series);
+    return series;
+  }
+
   function createTask(userId: string, payload: TaskPatch): Task {
-    const task = normalizeTask({ ...payload, userId, id: createId('t') } as Task);
+    const { repeat, ...rest } = payload;
+    // 首实例日期：优先用用户填的截止时间，否则用规则起始日 09:00，再兜底为现在
+    const seedSource = rest.dueAt ? new Date(rest.dueAt) : null;
+    const rule = normalizeRule({
+      ...(repeat || {}),
+      startDate: (repeat as RepeatRule | undefined)?.startDate || toDateKey(seedSource || new Date()),
+    });
+    let seriesId: string | null = null;
+    if (rule) {
+      // 重复任务必须有时间锚点：没填截止时间时，落在生效起始日的 09:00
+      const startDay = parseDateKey(rule.startDate) || new Date();
+      const seed = seedSource || applyTimeOfDay(startDay, '09:00');
+      rest.dueAt = seed.toISOString();
+      const series = createSeries(userId, { ...rest, dueAt: seed.toISOString() }, rule, seed);
+      seriesId = series.id;
+    }
+    const task = normalizeTask({ ...rest, userId, id: createId('t'), seriesId } as Task);
     db.tasks.push(task);
     save();
     return task;
@@ -300,6 +461,154 @@ function createStore(dataDir?: string): Store {
     db.tasks = db.tasks.filter((x) => !(x.userId === userId && x.id === id));
     save();
     return db.tasks.length < before;
+  }
+
+  // ---------------- 重复任务的作用域操作 ----------------
+  /**
+   * 勾选完成 / 取消完成（重复任务会自动推进或回滚下一期）
+   * - 完成当前期 → 若系列未结束且没有其它未完成期，生成下一期
+   * - 取消完成 → 撤掉此前推进出来的后续期，回到「这一期未完成」的状态
+   */
+  function toggleComplete(
+    userId: string,
+    id: string,
+    completed: boolean
+  ): { task: Task; next: Task | null } | null {
+    const t = getTask(userId, id);
+    if (!t) return null;
+    const updated = updateTask(userId, id, { completed });
+    if (!updated) return null;
+    const series = findSeries(userId, t.seriesId);
+    let next: Task | null = null;
+    if (series) {
+      const now = new Date().toISOString();
+      if (completed) {
+        series.completedCount += 1;
+        series.updatedAt = now;
+        if (!hasOpenInstance(userId, series.id, id)) {
+          next = spawnNextInstance(series, updated.dueAt ? new Date(updated.dueAt) : new Date());
+        }
+      } else {
+        const drop = db.tasks.filter(
+          (x) => x.userId === userId && x.seriesId === series.id && !x.completed && x.id !== id
+        );
+        if (drop.length) {
+          const dropIds = new Set(drop.map((x) => x.id));
+          db.tasks = db.tasks.filter((x) => !dropIds.has(x.id));
+          series.generatedCount = Math.max(1, series.generatedCount - drop.length);
+        }
+        if (series.completedCount > 0) series.completedCount -= 1;
+        series.updatedAt = now;
+      }
+      save();
+    }
+    return { task: updated, next };
+  }
+
+  /**
+   * 编辑任务（可选作用范围）
+   * - once：只改这一期
+   * - series：更新系列模板 + 同步所有「未完成」的期（已完成的期保留历史原样）
+   */
+  function updateTaskScoped(userId: string, id: string, patch: TaskPatch, scope: RepeatScope): Task | null {
+    const t = getTask(userId, id);
+    if (!t) return null;
+    const series = findSeries(userId, t.seriesId);
+    const { repeat, ...rest } = patch;
+
+    if (!series || scope === 'once') {
+      const updated = updateTask(userId, id, rest);
+      // 单期也可能改重复规则（此时同步回系列，后续期按新规则推进）
+      if (updated && series && repeat !== undefined) {
+        const rule = normalizeRule({
+          ...repeat,
+          startDate: repeat?.startDate || toDateKey(updated.dueAt ? new Date(updated.dueAt) : new Date()),
+        });
+        if (rule) {
+          series.rule = rule;
+          series.updatedAt = new Date().toISOString();
+          save();
+        }
+      }
+      return updated;
+    }
+
+    const now = new Date().toISOString();
+    if (rest.title !== undefined) series.title = String(rest.title || '未命名任务').slice(0, 200);
+    if (rest.note !== undefined) series.note = String(rest.note).slice(0, 2000);
+    if (rest.priority !== undefined && (ALLOWED_PRIORITY as string[]).includes(rest.priority)) {
+      series.priority = rest.priority as Task['priority'];
+    }
+    if (rest.category !== undefined) series.category = sanitizeCategory(rest.category);
+    if (rest.dueAt) series.timeOfDay = extractTimeOfDay(new Date(rest.dueAt));
+    if (rest.remindAt !== undefined) {
+      const dueRef = rest.dueAt ? new Date(rest.dueAt) : t.dueAt ? new Date(t.dueAt) : new Date();
+      series.remindLeadMinutes = rest.remindAt
+        ? Math.max(0, Math.round((dueRef.getTime() - new Date(rest.remindAt).getTime()) / 60000))
+        : null;
+    }
+    if (repeat !== undefined) {
+      const rule = normalizeRule({
+        ...repeat,
+        startDate: repeat?.startDate || toDateKey(t.dueAt ? new Date(t.dueAt) : new Date()),
+      });
+      if (rule) series.rule = rule;
+    }
+    series.updatedAt = now;
+
+    let current: Task | null = null;
+    for (const x of db.tasks) {
+      if (x.userId !== userId || x.seriesId !== series.id || x.completed) continue;
+      if (rest.title !== undefined) x.title = series.title;
+      if (rest.note !== undefined) x.note = series.note;
+      if (rest.priority !== undefined) x.priority = series.priority;
+      if (rest.category !== undefined) x.category = series.category;
+      if (rest.dueAt && x.dueAt) x.dueAt = applyTimeOfDay(new Date(x.dueAt), series.timeOfDay).toISOString();
+      x.remindAt =
+        series.remindLeadMinutes != null && x.dueAt
+          ? new Date(new Date(x.dueAt).getTime() - series.remindLeadMinutes * 60000).toISOString()
+          : null;
+      x.updatedAt = now;
+      if (x.id === id) current = x;
+    }
+    save();
+    return current || getTask(userId, id);
+  }
+
+  /**
+   * 删除任务（可选作用范围）
+   * - once：只删这一期；系列未结束时自动推进出下一期（跳过本期）
+   * - series：删除整个系列及其所有期（含已完成的期）
+   */
+  function deleteTaskScoped(userId: string, id: string, scope: RepeatScope): { deleted: boolean; next: Task | null } {
+    const t = getTask(userId, id);
+    if (!t) return { deleted: false, next: null };
+    const series = findSeries(userId, t.seriesId);
+
+    if (!series || scope === 'once') {
+      const deleted = deleteTask(userId, id);
+      let next: Task | null = null;
+      if (deleted && series && !hasOpenInstance(userId, series.id)) {
+        next = spawnNextInstance(series, t.dueAt ? new Date(t.dueAt) : new Date());
+        save();
+      }
+      return { deleted, next };
+    }
+
+    db.tasks = db.tasks.filter((x) => !(x.userId === userId && x.seriesId === series.id));
+    db.series = db.series.filter((s) => s.id !== series.id);
+    save();
+    return { deleted: true, next: null };
+  }
+
+  function getSeriesForTask(userId: string, taskId: string): RepeatSeries | null {
+    const t = getTask(userId, taskId);
+    if (!t || !t.seriesId) return null;
+    return findSeries(userId, t.seriesId);
+  }
+
+  function listSeries(userId: string): RepeatSeries[] {
+    return db.series.filter((s) => s.userId === userId);
   }
 
   /** 取出需要触发提醒的任务 */
@@ -406,6 +715,11 @@ function createStore(dataDir?: string): Store {
     updateTask,
     reorderTasks,
     deleteTask,
+    toggleComplete,
+    updateTaskScoped,
+    deleteTaskScoped,
+    getSeriesForTask,
+    listSeries,
     incrementPomodoro,
     pullDueReminders,
     markReminded,

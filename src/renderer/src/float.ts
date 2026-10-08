@@ -319,9 +319,11 @@ function renderPomodoro(): void {
 async function refresh(): Promise<void> {
   const res = await api.floatState();
   if (!res.ok || !res.data) return;
-  const { task, pomodoro: p, opacity, locale, theme } = res.data;
+  const { task, pomodoro: p, opacity, locale, theme, pomodoroMinutes: mins } = res.data;
   currentTask = task;
   pomodoro = p;
+  // 专注时长以主进程设置为准：设置面板改完后主进程广播 float:state-changed → 这里即时同步
+  if (typeof mins === 'number' && mins > 0) pomodoroMinutes = mins;
   setLocale(locale || 'zh-CN');
   document.documentElement.lang = locale || 'zh-CN';
   document.documentElement.setAttribute('data-theme', theme === 'dark' ? 'dark' : 'light');

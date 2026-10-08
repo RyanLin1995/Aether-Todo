@@ -55,6 +55,15 @@ export function fmtDateTime(iso: string | null): string {
   return t('date.full', { y: d.getFullYear(), m: pad(m), d: pad(d.getDate()), time });
 }
 
+/** 只显示日期（重复规则预览 / 下一期日期用） */
+export function fmtDate(d: Date): string {
+  const now = new Date();
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  if (d.getFullYear() === now.getFullYear()) return t('date.dayOnly', { m, d: day });
+  return t('date.fullDayOnly', { y: d.getFullYear(), m: pad(m), d: pad(day) });
+}
+
 export function fmtRelative(iso: string | null): string {
   if (!iso) return '';
   const diff = new Date(iso).getTime() - Date.now();

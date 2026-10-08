@@ -1,8 +1,9 @@
 /** 应用入口：任务列表、视图切换、语言切换 */
-import { $, $$, el, toast, CATEGORIES, categoryLabel, initTheme, icon, type IconName } from './utils';
+import { $, $$, el, toast, fmtDate, CATEGORIES, categoryLabel, initTheme, icon, type IconName } from './utils';
 import { t, setLocale, getLocale, applyStaticI18n } from './i18n';
 import { Tasks, Settings, App, Pomodoro, FloatWindow, type PomodoroStatus } from './api';
 import { taskCard, taskEditor } from './tasks';
+import { confirmDialog, choiceDialog } from './dialog';
 import { mountAssistant, type AssistantPanel } from './assistant';
 import { mountSettings, type SettingsPanel } from './settings';
 import { renderStats } from './stats';
@@ -132,9 +133,10 @@ async function refresh(): Promise<void> {
             },
             onSave: async (patch) => {
               try {
+                const repeating = Boolean(patch.repeat);
                 await Tasks.create({ ...patch, remindAt: patch.remindAt || patch.dueAt, source: 'manual' });
                 state.creating = false;
-                toast(t('toast.created'), 'success');
+                toast(repeating ? t('toast.repeatCreated') : t('toast.created'), 'success');
                 void refresh();
               } catch (err) {
                 toast((err as Error).message, 'error');
@@ -149,30 +151,63 @@ async function refresh(): Promise<void> {
 
     for (const task of view) {
       if (state.editingId === task.id) {
+        // 重复任务：回填系列规则供编辑器展示与修改
+        const series = task.seriesId ? await Tasks.seriesOf(task.id) : null;
         listEl.appendChild(
-          taskEditor(task, {
-            onCancel: () => {
-              state.editingId = null;
-              void refresh();
-            },
-            onSave: async (patch) => {
-              try {
-                await Tasks.update(task.id, patch);
+          taskEditor(
+            task,
+            {
+              onCancel: () => {
                 state.editingId = null;
-                toast(t('toast.saved'), 'success');
                 void refresh();
-              } catch (err) {
-                toast((err as Error).message, 'error');
-              }
+              },
+              onSave: async (patch) => {
+                try {
+                  if (task.seriesId) {
+                    const scope = await choiceDialog({
+                      title: t('scope.editTitle'),
+                      message: t('scope.editMessage', { title: task.title }),
+                      iconName: 'repeat',
+                      options: [
+                        { value: 'once', label: t('scope.once'), hint: t('scope.onceEditHint') },
+                        { value: 'series', label: t('scope.series'), hint: t('scope.seriesEditHint') },
+                      ],
+                      confirmText: t('task.save'),
+                      cancelText: t('task.cancel'),
+                    });
+                    if (!scope) return;
+                    await Tasks.updateScoped(task.id, patch, scope === 'series' ? 'series' : 'once');
+                    state.editingId = null;
+                    toast(scope === 'series' ? t('toast.seriesUpdated') : t('toast.saved'), 'success');
+                  } else {
+                    await Tasks.update(task.id, patch);
+                    state.editingId = null;
+                    toast(t('toast.saved'), 'success');
+                  }
+                  void refresh();
+                } catch (err) {
+                  toast((err as Error).message, 'error');
+                }
+              },
             },
-          })
+            series
+          )
         );
       } else {
         listEl.appendChild(
           taskCard(task, {
             toggle: async (id, completed) => {
               try {
-                await Tasks.update(id, { completed });
+                const target = state.tasks.find((x) => x.id === id);
+                if (target && target.seriesId) {
+                  // 重复任务：完成当期后由主进程推进出下一期
+                  const res = await Tasks.toggle(id, completed);
+                  if (completed && res.next && res.next.dueAt) {
+                    toast(t('toast.repeatNext', { date: fmtDate(new Date(res.next.dueAt)) }), 'success');
+                  }
+                } else {
+                  await Tasks.update(id, { completed });
+                }
                 void refresh();
               } catch (err) {
                 toast((err as Error).message, 'error');
@@ -204,8 +239,33 @@ async function refresh(): Promise<void> {
             },
             remove: async (id) => {
               try {
-                await Tasks.remove(id);
-                toast(t('toast.deleted'), 'info');
+                const target = state.tasks.find((x) => x.id === id);
+                if (target && target.seriesId) {
+                  const scope = await choiceDialog({
+                    title: t('scope.deleteTitle'),
+                    message: t('scope.deleteMessage', { title: target.title }),
+                    iconName: 'trash',
+                    danger: true,
+                    options: [
+                      { value: 'once', label: t('scope.once'), hint: t('scope.onceDeleteHint') },
+                      { value: 'series', label: t('scope.series'), hint: t('scope.seriesDeleteHint') },
+                    ],
+                    confirmText: t('task.delete'),
+                    cancelText: t('task.cancel'),
+                  });
+                  if (!scope) return;
+                  const res = await Tasks.removeScoped(id, scope === 'series' ? 'series' : 'once');
+                  if (scope === 'series') {
+                    toast(t('toast.seriesDeleted'), 'info');
+                  } else if (res.next && res.next.dueAt) {
+                    toast(t('toast.repeatNext', { date: fmtDate(new Date(res.next.dueAt)) }), 'info');
+                  } else {
+                    toast(t('toast.deleted'), 'info');
+                  }
+                } else {
+                  await Tasks.remove(id);
+                  toast(t('toast.deleted'), 'info');
+                }
                 void refresh();
               } catch (err) {
                 toast((err as Error).message, 'error');
@@ -417,8 +477,17 @@ function bindApp(): void {
   });
 
   $('#btn-float')!.addEventListener('click', () => void FloatWindow.toggle());
+  // 结束专注：统一走应用内液态玻璃弹窗（原生 confirm 标题取自 document.title，风格割裂）
   ($('#pomodoro-indicator') as HTMLElement).addEventListener('click', async () => {
-    if (!window.confirm(t('pomodoro.confirmStop'))) return;
+    const ok = await confirmDialog({
+      title: t('pomodoro.confirmStopTitle'),
+      message: t('pomodoro.confirmStop'),
+      confirmText: t('pomodoro.stopConfirm'),
+      cancelText: t('task.cancel'),
+      iconName: 'timer',
+      danger: true,
+    });
+    if (!ok) return;
     await Pomodoro.stop();
     renderPomodoroIndicator(null);
     toast(t('pomodoro.stopped'), 'info');

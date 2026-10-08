@@ -3,6 +3,8 @@ import type {
   AppSettings,
   CompletedPoint,
   IpcResult,
+  RepeatScope,
+  RepeatSeries,
   StoreStats,
   Task,
   TaskFilter,
@@ -16,6 +18,10 @@ export interface ApiBridge {
   createTasks(tasks: TaskPatch[]): Promise<IpcResult<Task[]>>;
   updateTask(id: string, patch: TaskPatch): Promise<IpcResult<Task>>;
   deleteTask(id: string): Promise<IpcResult<{ deleted: boolean }>>;
+  toggleCompleteTask(id: string, completed: boolean): Promise<IpcResult<{ task: Task; next: Task | null }>>;
+  updateTaskScoped(id: string, patch: TaskPatch, scope: RepeatScope): Promise<IpcResult<Task>>;
+  deleteTaskScoped(id: string, scope: RepeatScope): Promise<IpcResult<{ deleted: boolean; next: Task | null }>>;
+  seriesForTask(id: string): Promise<IpcResult<RepeatSeries | null>>;
   bulkComplete(ids: string[]): Promise<IpcResult<Task[]>>;
   reorderTasks(ids: string[]): Promise<IpcResult<{ reordered: boolean }>>;
   stats(): Promise<IpcResult<StoreStats>>;
@@ -96,6 +102,11 @@ export const Tasks = {
   createMany: async (tasks: TaskPatch[]) => unwrap(await api.createTasks(tasks)),
   update: async (id: string, patch: TaskPatch) => unwrap(await api.updateTask(id, patch)),
   remove: async (id: string) => unwrap(await api.deleteTask(id)),
+  toggle: async (id: string, completed: boolean) => unwrap(await api.toggleCompleteTask(id, completed)),
+  updateScoped: async (id: string, patch: TaskPatch, scope: RepeatScope) =>
+    unwrap(await api.updateTaskScoped(id, patch, scope)),
+  removeScoped: async (id: string, scope: RepeatScope) => unwrap(await api.deleteTaskScoped(id, scope)),
+  seriesOf: async (id: string) => unwrap(await api.seriesForTask(id)),
   bulkComplete: async (ids: string[]) => unwrap(await api.bulkComplete(ids)),
   reorder: async (ids: string[]) => unwrap(await api.reorderTasks(ids)),
   stats: async () => unwrap(await api.stats()),
