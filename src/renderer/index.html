@@ -7,8 +7,8 @@
       content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
     />
     <title data-i18n="app.title">Aether Todo</title>
-    <link rel="stylesheet" href="../renderer-dist/styles.css?v=1.1.7" />
-    <script src="../renderer-dist/app.js?v=1.1.7" defer></script>
+    <link rel="stylesheet" href="../renderer-dist/styles.css?v=1.1.8" />
+    <script src="../renderer-dist/app.js?v=1.1.8" defer></script>
   </head>
   <body class="bg-base-200 text-base-content antialiased">
     <!-- 液态玻璃先锋环境光斑层 -->
@@ -295,6 +295,10 @@
             <label class="field">
               <span data-i18n="settings.lead">默认提前提醒（分钟）</span>
               <input id="set-lead" type="number" min="0" max="1440" />
+            </label>
+            <label class="switch settings-switch-row">
+              <input id="set-launch" type="checkbox" class="toggle toggle-sm toggle-primary" />
+              <span data-i18n="settings.launchOnStartup">开机自动启动</span>
             </label>
           </section>
 

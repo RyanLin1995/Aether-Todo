@@ -72,6 +72,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   aiEnabled: true, // 未配置 Key 时自动降级为本地规则解析
   reminderEnabled: true,
   reminderLeadMinutes: 0,
+  launchOnStartup: false,
 };
 
 const ALLOWED_CATEGORIES = ['工作', '学习', '生活', '健康', '财务', '社交', '其他'] as const;
@@ -384,7 +385,11 @@ function createStore(dataDir?: string): Store {
     return series;
   }
 
-  function createTask(userId: string, payload: TaskPatch): Task {
+  /**
+   * 实例化一条任务：若 payload 含合法 repeat 规则，则建立重复系列并关联 seriesId；
+   * 否则作为普通一次性任务。本函数只构建对象、push 进内存，**不落盘**（由调用方统一 save）。
+   */
+  function materializeTask(userId: string, payload: TaskPatch): Task {
     const { repeat, ...rest } = payload;
     // 首实例日期：优先用用户填的截止时间，否则用规则起始日 09:00，再兜底为现在
     const seedSource = rest.dueAt ? new Date(rest.dueAt) : null;
@@ -401,14 +406,18 @@ function createStore(dataDir?: string): Store {
       const series = createSeries(userId, { ...rest, dueAt: seed.toISOString() }, rule, seed);
       seriesId = series.id;
     }
-    const task = normalizeTask({ ...rest, userId, id: createId('t'), seriesId } as Task);
+    return normalizeTask({ ...rest, userId, id: createId('t'), seriesId } as Task);
+  }
+
+  function createTask(userId: string, payload: TaskPatch): Task {
+    const task = materializeTask(userId, payload);
     db.tasks.push(task);
     save();
     return task;
   }
 
   function createTasks(userId: string, payloads: TaskPatch[]): Task[] {
-    const created = payloads.map((p) => normalizeTask({ ...p, userId, id: createId('t') } as Task));
+    const created = payloads.map((p) => materializeTask(userId, p));
     db.tasks.push(...created);
     save();
     return created;

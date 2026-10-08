@@ -17,7 +17,9 @@ export interface TaskHandlers {
 
 export function taskCard(task: Task, handlers: TaskHandlers): HTMLElement {
   const isDone = Boolean(task.completed);
-  const overdue = !isDone && task.dueAt && new Date(task.dueAt).getTime() < Date.now();
+  // 重复任务（属于某个重复系列）按「周期重生」语义处理，不标记过期：
+  // 当前期未完成只是尚未勾掉，完成时会自动生成下一期，因此不存在「逾期」状态。
+  const overdue = !isDone && !task.seriesId && task.dueAt && new Date(task.dueAt).getTime() < Date.now();
 
   const metaItems: (HTMLElement | null)[] = [
     el('span', { class: 'tag cat' }, [icon('tag', { size: 11 }), categoryLabel(task.category)]),

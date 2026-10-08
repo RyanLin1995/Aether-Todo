@@ -63,11 +63,42 @@ const SCHEMA = `{
       "priority": "high",
       "priorityReason": "...",
       "dueAt": "2026-09-30T15:00:00+08:00",
-      "remindAt": "2026-09-30T14:50:00+08:00"
+      "remindAt": "2026-09-30T14:50:00+08:00",
+      "repeat": null
     }
   ],
   "matchTitles": []
 }`;
+
+/** 重复规则字段说明（中英双语，注入系统提示词） */
+function repeatInstruction(locale = 'zh-CN'): string {
+  if (i18n.normalizeLocale(locale) === 'en-US') {
+    return `## Recurring tasks (the "repeat" field)
+When the user says "every day / every week / every Monday, Wednesday, Friday / every month / every year / every 3 days / every other week", set "repeat":
+{
+  "freq": "day | week | month | year",
+  "interval": 1,
+  "weekdays": [],            // only for freq=week: 1=Mon … 7=Sun, e.g. [1,3,5]; omit to use the start day's weekday
+  "startDate": "YYYY-MM-DD", // first occurrence (local calendar day); defaults to today if omitted
+  "endMode": "never",        // never | until | count
+  "endDate": null,           // endMode=until: last day YYYY-MM-DD (inclusive)
+  "endCount": null           // endMode=count: total occurrences (incl. first)
+}
+For one-off tasks set "repeat": null. weekdays defaults to the start day's weekday when empty.`;
+  }
+  return `## 重复任务（repeat 字段）
+当用户说「每天 / 每周 / 每周一三五 / 每月 / 每年 / 每3天 / 每隔2周」等，填 repeat：
+{
+  "freq": "day | week | month | year",
+  "interval": 1,
+  "weekdays": [],            // 仅 freq=week：1=周一…7=周日，如 [1,3,5]；留空=沿用起始日的周几
+  "startDate": "YYYY-MM-DD", // 首次发生日（本地日历日），不填默认今天
+  "endMode": "never",        // never=永不结束 | until=到某天 | count=共N期
+  "endDate": null,           // endMode=until 时填结束日 YYYY-MM-DD（含当天）
+  "endCount": null           // endMode=count 时填总期数（含首期）
+}
+不重复的任务把 repeat 填 null。startDate 不填默认今天；weekdays 留空默认按 startDate 的周几。`;
+}
 
 function buildEnglishPrompt(now: Date): string {
   return `You are the AI assistant inside "AI Todo App", a desktop task app. Your job: turn the user's plain-language description into structured to-do items, and talk to them naturally.
@@ -91,6 +122,8 @@ Write "reply" and "priorityReason" in English.
 ## category — internal keys
 Use exactly one of these identifiers and never translate them (the UI localizes them for display):
 工作 (Work), 学习 (Study), 生活 (Life), 健康 (Health), 财务 (Finance), 社交 (Social), 其他 (Other)
+
+${repeatInstruction('en-US')}
 
 ## Output format (strict JSON, no extra text outside the JSON)
 ${SCHEMA}
@@ -125,6 +158,8 @@ reply 与 priorityReason 使用简体中文。
 
 ## 类别（category）只能从以下枚举中取值
 工作、学习、生活、健康、财务、社交、其他
+
+${repeatInstruction('zh-CN')}
 
 ## 输出格式（严格 JSON，不要输出任何额外的解释文字、不要加 Markdown 代码块以外的内容）
 ${SCHEMA}

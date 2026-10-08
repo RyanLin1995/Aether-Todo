@@ -142,6 +142,8 @@ export interface AppSettings {
   aiEnabled: boolean;
   reminderEnabled: boolean;
   reminderLeadMinutes: number;
+  /** 开机自动启动（Windows 登录时启动应用） */
+  launchOnStartup: boolean;
 }
 
 /** 应用内通知（液态玻璃通知卡）的语义色调 */
@@ -199,6 +201,8 @@ export interface AiTaskDraft {
   priorityReason: string;
   dueAt: string | null;
   remindAt: string | null;
+  /** 重复规则：模型/本地引擎识别出「每天/每周/每月…」时给出；null = 不重复 */
+  repeat?: RepeatRule | null;
 }
 
 /** AI 理解结果（远端模型与本地引擎的统一输出） */

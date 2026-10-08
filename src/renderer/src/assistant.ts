@@ -2,6 +2,7 @@
 import { el, toast, fmtDateTime, priorityLabel, categoryLabel, CATEGORIES, icon } from './utils';
 import { t } from './i18n';
 import { Tasks, AI } from './api';
+import { repeatSummary } from './tasks';
 import type { Task, TaskPatch, UnderstandResult } from '../../shared/types';
 
 export interface AssistantContext {
@@ -218,6 +219,10 @@ export function mountAssistant({ getTasks, onTasksChanged }: AssistantContext): 
       if (item.priorityReason) {
         metaParts.push(` · ${item.priorityReason}`);
       }
+      if (item.repeat) {
+        metaParts.push(icon('repeat', { size: 11 }));
+        metaParts.push(` ${repeatSummary(item.repeat)}`);
+      }
 
       const line = el('div', { class: 'proposal-content' }, [
         titleInput,
@@ -251,6 +256,7 @@ export function mountAssistant({ getTasks, onTasksChanged }: AssistantContext): 
                   priorityReason: i.priorityReason || '',
                   dueAt: i.dueAt ?? null,
                   remindAt: i.remindAt || i.dueAt || null,
+                  repeat: i.repeat ?? null,
                   source: 'ai' as const,
                 }))
               );

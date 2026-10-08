@@ -384,6 +384,47 @@ test('英文「完成」意图可识别', () => {
   assert.strictEqual(r.intent, 'complete');
 });
 
+// ============ 8b. AI 重复任务识别 ============
+console.log('\n[8b] AI 自然语言识别重复任务');
+test('normalizeAiTasks：模型返回合法 repeat 规则', () => {
+  const list = ai.normalizeAiTasks(
+    [{ title: '喝水', repeat: { freq: 'day', interval: 1, weekdays: [], startDate: '2026-01-01', endMode: 'never', endDate: null, endCount: null } }],
+    NOW,
+    'zh-CN'
+  );
+  assert.ok(list[0].repeat, '应识别为重复任务');
+  assert.strictEqual(list[0].repeat.freq, 'day');
+  assert.strictEqual(list[0].repeat.interval, 1);
+});
+test('normalizeAiTasks：模型返回非法 freq 视为不重复', () => {
+  const list = ai.normalizeAiTasks([{ title: 'X', repeat: { freq: 'hourly', interval: 1 } }], NOW, 'zh-CN');
+  assert.strictEqual(list[0].repeat, null);
+});
+test('normalizeAiTasks：缺失 repeat 字段为一次性任务', () => {
+  const list = ai.normalizeAiTasks([{ title: 'Y', dueAt: '2026-01-01T09:00:00+08:00' }], NOW, 'zh-CN');
+  assert.strictEqual(list[0].repeat, null);
+});
+test('parseLocally：中文「每天」→ day', () => {
+  const r = ai.parseLocally('每天提醒我喝水', { now: NOW });
+  assert.strictEqual(r.intent, 'create');
+  assert.strictEqual(r.tasks[0].repeat.freq, 'day');
+});
+test('parseLocally：中文「每周一三五」→ week + 周几 [1,3,5]', () => {
+  const r = ai.parseLocally('每周一三五去健身', { now: NOW });
+  assert.strictEqual(r.tasks[0].repeat.freq, 'week');
+  assert.deepStrictEqual(r.tasks[0].repeat.weekdays, [1, 3, 5]);
+});
+test('parseLocally：中文「每3天」→ day interval=3', () => {
+  const r = ai.parseLocally('每3天给绿植浇水', { now: NOW });
+  assert.strictEqual(r.tasks[0].repeat.freq, 'day');
+  assert.strictEqual(r.tasks[0].repeat.interval, 3);
+});
+test('parseLocally：普通一次性任务 repeat 为 null', () => {
+  const r = ai.parseLocally('明天去体检', { now: NOW });
+  assert.strictEqual(r.tasks[0].repeat, null);
+});
+
+
 // ============ 9. 空响应与内容提取 ============
 console.log('\n[9] 空响应处理（模型偶发空内容）');
 test('extractContent：标准 content', () => {

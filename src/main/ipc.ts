@@ -225,6 +225,14 @@ function registerIpc({
   ipcMain.handle('settings:update', safe(async (u, { patch }: { patch?: Partial<AppSettings> }) => {
     const next = store.updateSettings(u.id, patch || {});
     if (patch && patch.locale && onLocaleChange) onLocaleChange(patch.locale);
+    // 开机启动：写入 Windows 登录项（仅 Windows 生效；打包后的 exe 路径才可被登录项引用）
+    if (patch && patch.launchOnStartup !== undefined && process.platform === 'win32') {
+      app.setLoginItemSettings({
+        openAtLogin: Boolean(patch.launchOnStartup),
+        path: process.execPath,
+        args: [],
+      });
+    }
     // 外观类设置（整体液态程度 / 主题 / 语言）与番茄钟时长变化后立即同步灵动岛：
     // 前者让背景与按钮的玻璃材质跟主界面保持同一套材质参数，
     // 后者让岛内「开始专注」直接使用最新时长（否则岛内缓存的仍是旧值）。

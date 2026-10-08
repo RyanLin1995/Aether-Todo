@@ -416,7 +416,16 @@ async function bootstrap(): Promise<void> {
 
   const localUser = store.ensureLocalUser();
   activeUserId = localUser.id;
-  applyLocale((store.getSettings(localUser.id) || {}).locale);
+  const bootSettings = store.getSettings(localUser.id);
+  applyLocale(bootSettings.locale);
+  // 应用「开机启动」设置（仅 Windows 生效）
+  if (process.platform === 'win32') {
+    app.setLoginItemSettings({
+      openAtLogin: Boolean(bootSettings.launchOnStartup),
+      path: process.execPath,
+      args: [],
+    });
+  }
 
   pomodoro = createPomodoroService({
     store,

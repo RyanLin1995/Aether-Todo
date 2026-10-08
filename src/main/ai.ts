@@ -8,7 +8,8 @@
  */
 import * as i18n from './i18n';
 import { buildSystemPrompt, buildTasksDigest, CURRENT_TIME_HINT } from './prompt';
-import type { AiTaskDraft, AppSettings, Intent, Locale, UnderstandResult } from '../shared/types';
+import { normalizeRule, toDateKey } from '../shared/recurrence';
+import type { AiTaskDraft, AppSettings, Intent, Locale, RepeatRule, UnderstandResult } from '../shared/types';
 
 const CATEGORIES = ['工作', '学习', '生活', '健康', '财务', '社交', '其他'];
 
@@ -491,6 +492,84 @@ function normalizeIso(v: unknown): string | null {
   return d.toISOString();
 }
 
+/** 规范化模型返回的重复规则；非法/缺失返回 null（按不重复处理） */
+function normalizeAiRepeat(raw: unknown): RepeatRule | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const freq = String(r.freq || '').toLowerCase();
+  if (!['day', 'week', 'month', 'year'].includes(freq)) return null;
+  const rule = normalizeRule({
+    freq,
+    interval: Number(r.interval) || 1,
+    weekdays: r.weekdays,
+    startDate: typeof r.startDate === 'string' && r.startDate ? (r.startDate as string) : toDateKey(new Date()),
+    endMode: (r.endMode as string) || 'never',
+    endDate: (r.endDate as string) || null,
+    endCount: r.endCount != null ? Number(r.endCount) : null,
+  });
+  return rule;
+}
+
+/**
+ * 本地兜底引擎识别重复语义：每天 / 每周 / 每周一三五 / 每月 / 每年 / 每N天 / 每隔N天 …
+ * 命中返回 RepeatRule，否则 null。week 频率时解析中英文周几（周一三五、Mon Wed Fri）。
+ */
+function parseRecurrenceLocally(text: string, now: Date): RepeatRule | null {
+  const s = normalizeChineseNumbers(String(text || ''));
+  const lower = s.toLowerCase();
+
+  let freq: 'day' | 'week' | 'month' | 'year' | null = null;
+  let interval = 1;
+
+  const im = lower.match(/每\s*(?:隔\s*)?(\d+)\s*(天|日|周|星期|礼拜|个月|月|年)/);
+  if (im) {
+    interval = Math.max(1, Math.min(99, Math.floor(Number(im[1]) || 1)));
+    const unit = im[2];
+    if (unit.includes('天') || unit.includes('日')) freq = 'day';
+    else if (unit.includes('周') || unit.includes('星期') || unit.includes('礼拜')) freq = 'week';
+    else if (unit.includes('月')) freq = 'month';
+    else if (unit.includes('年')) freq = 'year';
+  } else if (/(每天|每日|天天|every\s*day|daily)/.test(lower)) {
+    freq = 'day';
+  } else if (/(每周|每星期|每个礼拜|every\s*week|weekly)/.test(lower)) {
+    freq = 'week';
+  } else if (/(每月|每一个月|every\s*month|monthly)/.test(lower)) {
+    freq = 'month';
+  } else if (/(每年|every\s*year|annually|yearly)/.test(lower)) {
+    freq = 'year';
+  }
+
+  if (!freq) return null;
+
+  let weekdays: number[] = [];
+  if (freq === 'week') {
+    const wdMap: Record<string, number> = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 日: 7, 天: 7 };
+    const enMap: Record<string, number> = { mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6, sun: 7 };
+    const found = new Set<number>();
+    const run = lower.matchAll(/(?:周|星期|礼拜)\s*([一二三四五六日天1-7]+)/g);
+    for (const m of run) {
+      for (const ch of m[1]) {
+        const v = wdMap[ch];
+        if (v) found.add(v);
+        else if (ch >= '1' && ch <= '7') found.add(Number(ch));
+      }
+    }
+    const en = lower.matchAll(/\b(mon|tue|wed|thu|fri|sat|sun)(?:day)?\b/g);
+    for (const m of en) found.add(enMap[m[1]]);
+    weekdays = Array.from(found).filter(Boolean).sort((a, b) => a - b);
+  }
+
+  return normalizeRule({
+    freq,
+    interval,
+    weekdays,
+    startDate: toDateKey(now),
+    endMode: 'never',
+    endDate: null,
+    endCount: null,
+  });
+}
+
 /** 规范化模型返回的字段 */
 function normalizeAiTasks(list: unknown, _now: Date, locale = 'zh-CN'): AiTaskDraft[] {
   if (!Array.isArray(list)) return [];
@@ -518,6 +597,7 @@ function normalizeAiTasks(list: unknown, _now: Date, locale = 'zh-CN'): AiTaskDr
         priorityReason: String(t.priorityReason || t.reason || fallbackReason || ''),
         dueAt: normalizeIso(dueAt),
         remindAt: normalizeIso(t.remindAt || dueAt),
+        repeat: normalizeAiRepeat(t.repeat || t.recurrence),
       };
     });
 }
@@ -838,7 +918,10 @@ function parseLocally(text: string, ctx: LocalParseContext = {}): UnderstandResu
   const sentences = splitTasks(raw);
   const hasVerb = TASK_VERBS.some((v) => lower.includes(v));
   const hasTime = parseDateTime(raw, now).dueAt !== null;
-  const isTaskLike = hasVerb || hasTime;
+  // 逐句识别重复语义：命中则强制视为任务（「每天/每周…」本身就是强意图信号，不依赖动作词）
+  const recs = sentences.map((s) => parseRecurrenceLocally(s, now));
+  const hasRecurrence = recs.some((r) => r != null);
+  const isTaskLike = hasVerb || hasTime || hasRecurrence;
   if (!sentences.length || !isTaskLike) {
     return {
       reply: i18n.t(locale, 'local.reply.chatHint'),
@@ -850,7 +933,7 @@ function parseLocally(text: string, ctx: LocalParseContext = {}): UnderstandResu
   }
 
   const lead = parseRemindLead(raw);
-  const parsed: AiTaskDraft[] = sentences.map((s) => {
+  const parsed: AiTaskDraft[] = sentences.map((s, idx) => {
     const dt = parseDateTime(s, now);
     const pr = detectPriority(s, dt.dueAt, locale);
     const category = detectCategory(s);
@@ -866,6 +949,7 @@ function parseLocally(text: string, ctx: LocalParseContext = {}): UnderstandResu
       priorityReason: pr.reason,
       dueAt: dt.dueAt,
       remindAt,
+      repeat: recs[idx],
     };
   });
 

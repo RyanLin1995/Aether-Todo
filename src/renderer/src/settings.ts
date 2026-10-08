@@ -49,6 +49,7 @@ export function mountSettings({
   const aiEnabled = $('#set-ai-enabled') as HTMLInputElement;
   const reminder = $('#set-reminder') as HTMLInputElement;
   const lead = $('#set-lead') as HTMLInputElement;
+  const launch = $('#set-launch') as HTMLInputElement;
   const localeSel = $('#set-locale') as HTMLSelectElement;
   const proxyMode = $('#set-proxy-mode') as HTMLSelectElement;
   const proxyUrl = $('#set-proxy-url') as HTMLInputElement;
@@ -82,6 +83,7 @@ export function mountSettings({
     aiEnabled.checked = Boolean(s.aiEnabled);
     reminder.checked = Boolean(s.reminderEnabled);
     lead.value = String(s.reminderLeadMinutes ?? 0);
+    if (launch) launch.checked = Boolean(s.launchOnStartup);
     localeSel.value = (s.locale as string) || 'zh-CN';
     themeSel.value = initTheme();
     proxyMode.value = s.proxyMode || 'none';
@@ -135,6 +137,9 @@ export function mountSettings({
   lead.addEventListener('change', () =>
     void save({ reminderLeadMinutes: Math.max(0, Number(lead.value) || 0) })
   );
+  if (launch) {
+    launch.addEventListener('change', () => void save({ launchOnStartup: launch.checked }));
+  }
 
   /**
    * 番茄钟时长变更：写库后立即生效。
