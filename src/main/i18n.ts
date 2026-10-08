@@ -51,7 +51,7 @@ const MESSAGES: Record<string, MessageTable> = {
     // 托盘
     'tray.tooltip': 'Aether Todo',
     'tray.open': '打开主界面',
-    'tray.float': '悬浮窗',
+    'tray.float': '灵动岛',
     'tray.check': '立即检查提醒',
     'float.title': 'Aether Todo · 灵动岛',
     'notify.windowTitle': 'Aether Todo · 通知',
@@ -100,7 +100,7 @@ const MESSAGES: Record<string, MessageTable> = {
     // Tray
     'tray.tooltip': 'Aether Todo',
     'tray.open': 'Open main window',
-    'tray.float': 'Floating window',
+    'tray.float': 'Dynamic Island',
     'tray.check': 'Check reminders now',
     'float.title': 'Aether Todo · Dynamic Island',
     'notify.windowTitle': 'Aether Todo · Notification',

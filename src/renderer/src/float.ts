@@ -40,6 +40,14 @@ interface FloatApi {
   pomodoroResume(): Promise<{ ok: boolean }>;
   floatSetOpacity(opacity: number): Promise<{ ok: boolean }>;
   floatSetIgnoreMouseEvents(ignore: boolean): Promise<{ ok: boolean }>;
+  /** 读取浮窗当前屏幕坐标 */
+  floatBounds(): Promise<{ ok: boolean; data?: { x: number; y: number } | null; error?: string }>;
+  /** 按增量位移移动浮窗；commit=true 时把落点写进设置 */
+  floatMoveBy(
+    dx: number,
+    dy: number,
+    commit?: boolean
+  ): Promise<{ ok: boolean; data?: { x: number; y: number } | null; error?: string }>;
   floatOpenMain(): Promise<{ ok: boolean }>;
   floatHide(): Promise<{ ok: boolean }>;
   floatCycleTask(dir: number): Promise<{ ok: boolean; error?: string }>;
@@ -67,6 +75,105 @@ let isExpanded = false;
  * 用 elementFromPoint 做 CSS 命中测试——border-radius 圆角外自动视为岛外，
  * 展开 / 收起动画期间矩形逐帧插值，命中区域随动画平滑伸缩，无突变。
  */
+/**
+ * 灵动岛拖拽状态。
+ * 不用 `-webkit-app-region: drag` 的原因：透明窗口靠 setIgnoreMouseEvents 做点击穿透，
+ * 按下瞬间若窗口处于穿透态，系统层收不到 HTCAPTION 命中，原生拖拽会时灵时不灵。
+ * 改由渲染进程按屏幕位移计算目标坐标，再 IPC 让主进程 setPosition —— 行为确定且可测。
+ */
+const drag = {
+  active: false,
+  pointerId: -1,
+  /** 上一次已上报的屏幕坐标：增量 = 当前 - 上一次 */
+  lastScreenX: 0,
+  lastScreenY: 0,
+};
+
+/**
+ * 用「增量位移」而不是「绝对坐标」：渲染进程不需要知道窗口在哪，
+ * 主进程每次基于自身当前位置累加，天然不受缓存漂移 / 多显示器影响。
+ */
+function sendDragStep(dx: number, dy: number, commit: boolean): void {
+  void api
+    .floatMoveBy(dx, dy, commit)
+    .catch(() => undefined);
+}
+
+/** 交互元素（按钮 / 输入框 / 岛内弹窗）上按下时不启动拖拽 */
+function isInteractive(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return !!target.closest('button, input, select, textarea, a, [data-no-drag], .island-confirm');
+}
+
+function beginDrag(e: PointerEvent): void {
+  if (e.button !== 0) return;
+  const island = document.getElementById('dynamic-island');
+  if (!island) return;
+  const target = e.target as Node | null;
+  // 只有按在岛身上才拖：岛外留白按下交给「点外部收起」处理
+  if (!target || !island.contains(target)) return;
+  if (isInteractive(e.target)) return;
+
+  drag.active = true;
+  drag.pointerId = e.pointerId;
+  drag.lastScreenX = e.screenX;
+  drag.lastScreenY = e.screenY;
+  island.classList.add('island-dragging');
+  // 拖拽期间整窗接管鼠标：否则指针移出岛外会被穿透，收不到后续 move / up
+  applyIgnore(false);
+  try {
+    island.setPointerCapture(e.pointerId);
+  } catch {
+    /* 少数环境不支持指针捕获，退化为窗口内拖拽 */
+  }
+  e.preventDefault();
+}
+
+function moveDrag(e: PointerEvent): void {
+  if (!drag.active) return;
+  const dx = e.screenX - drag.lastScreenX;
+  const dy = e.screenY - drag.lastScreenY;
+  if (dx === 0 && dy === 0) return;
+  drag.lastScreenX = e.screenX;
+  drag.lastScreenY = e.screenY;
+  sendDragStep(dx, dy, false);
+}
+
+function endDrag(e?: PointerEvent): void {
+  if (!drag.active) return;
+  const island = document.getElementById('dynamic-island');
+  drag.active = false;
+  island?.classList.remove('island-dragging');
+  try {
+    if (drag.pointerId >= 0 && island && island.hasPointerCapture(drag.pointerId)) {
+      island.releasePointerCapture(drag.pointerId);
+    }
+  } catch {
+    /* 捕获已自动释放，忽略 */
+  }
+  if (e) {
+    const dx = e.screenX - drag.lastScreenX;
+    const dy = e.screenY - drag.lastScreenY;
+    drag.lastScreenX = e.screenX;
+    drag.lastScreenY = e.screenY;
+    // 位移为 0 也要发一次：主进程据此把当前落点写进设置
+    sendDragStep(dx, dy, true);
+    applyIgnore(!overIsland(e.clientX, e.clientY));
+  } else {
+    applyIgnore(true);
+  }
+  drag.pointerId = -1;
+}
+
+function setupDrag(): void {
+  const island = document.getElementById('dynamic-island');
+  if (!island) return;
+  island.addEventListener('pointerdown', (e) => beginDrag(e));
+  island.addEventListener('pointermove', (e) => moveDrag(e));
+  island.addEventListener('pointerup', (e) => endDrag(e));
+  island.addEventListener('pointercancel', () => endDrag());
+}
+
 let mouseIgnoring = false;
 
 function applyIgnore(next: boolean): void {
@@ -77,27 +184,12 @@ function applyIgnore(next: boolean): void {
   });
 }
 
-function setupMousePassThrough(): void {
+/** 光标是否落在岛内（含圆角外判定：由 elementFromPoint 的 CSS 命中测试负责） */
+function overIsland(x: number, y: number): boolean {
   const island = document.getElementById('dynamic-island');
-  if (!island || !api.floatSetIgnoreMouseEvents) return;
-
-  const overIsland = (x: number, y: number): boolean => {
-    const hit = document.elementFromPoint(x, y);
-    return !!hit && island.contains(hit);
-  };
-
-  window.addEventListener('mousemove', (e) => {
-    applyIgnore(!overIsland(e.clientX, e.clientY));
-  });
-  // 光标快速甩出窗口：mouseout 无 relatedTarget 即离开文档，兜底恢复穿透
-  window.addEventListener('mouseout', (e) => {
-    if (!e.relatedTarget) applyIgnore(true);
-  });
-  window.addEventListener('blur', () => applyIgnore(true));
-
-  // 初始默认穿透：收起态胶囊只占窗口一小块，其余透明区域必须可点击下层
-  mouseIgnoring = false;
-  applyIgnore(true);
+  if (!island) return false;
+  const hit = document.elementFromPoint(x, y);
+  return !!hit && island.contains(hit);
 }
 
 function updateIslandMode(): void {
@@ -110,6 +202,64 @@ function updateIslandMode(): void {
     island.classList.remove('island-expanded');
     island.classList.add('island-compact');
   }
+}
+
+/** 收起展开态 */
+function collapseIsland(): void {
+  if (!isExpanded) return;
+  isExpanded = false;
+  updateIslandMode();
+}
+
+/** 岛内确认弹窗打开中：此时不响应「点外部收起」，必须先让用户做出选择 */
+function isConfirmOpen(): boolean {
+  const wrap = document.getElementById('island-confirm');
+  return !!wrap && !wrap.classList.contains('hidden');
+}
+
+function setupMousePassThrough(): void {
+  const island = document.getElementById('dynamic-island');
+  if (!island || !api.floatSetIgnoreMouseEvents) return;
+
+  window.addEventListener('mousemove', (e) => {
+    if (drag.active) return;
+    applyIgnore(!overIsland(e.clientX, e.clientY));
+  });
+  // 光标快速甩出窗口：mouseout 无 relatedTarget 即离开文档，兜底恢复穿透
+  window.addEventListener('mouseout', (e) => {
+    if (drag.active) return;
+    if (!e.relatedTarget) applyIgnore(true);
+  });
+  window.addEventListener('blur', () => {
+    endDrag();
+    applyIgnore(true);
+    // 展开态下「点到别处」= 窗口失焦（点其他窗口 / 桌面 / 穿透到下层窗口），一律收起
+    if (!isConfirmOpen()) collapseIsland();
+  });
+
+  // 初始默认穿透：收起态胶囊只占窗口一小块，其余透明区域必须可点击下层
+  mouseIgnoring = false;
+  applyIgnore(true);
+}
+
+/**
+ * 展开态：点击非灵动岛区域即收起。
+ * 岛外的透明区域鼠标是穿透的，落不到本窗口；真正落到本窗口矩形内又不在岛内的点击
+ * （岛四周那几像素留白）由这里的 mousedown 捕获兜底。
+ */
+function setupCollapseOnOutside(): void {
+  window.addEventListener(
+    'mousedown',
+    (e) => {
+      if (!isExpanded || drag.active || isConfirmOpen()) return;
+      const island = document.getElementById('dynamic-island');
+      const target = e.target as Node | null;
+      if (island && target && island.contains(target)) return;
+      collapseIsland();
+      applyIgnore(true);
+    },
+    true
+  );
 }
 
 /**
@@ -482,6 +632,8 @@ function bind(): void {
 async function boot(): Promise<void> {
   bind();
   setupMousePassThrough();
+  setupCollapseOnOutside();
+  setupDrag();
   const settings = await api.getSettings();
   if (settings.ok && settings.data) pomodoroMinutes = settings.data.pomodoroMinutes || 25;
   await refresh();

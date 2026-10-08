@@ -1679,8 +1679,16 @@
       0 0 0 1px rgba(255, 255, 255, calc(var(--liquid-border) * 0.85)) inset,
       0 1px 0 0 rgba(255, 255, 255, var(--liquid-highlight)) inset;
     transition: all 0.38s cubic-bezier(0.16, 1, 0.3, 1);
-    -webkit-app-region: drag;
+    /* 拖拽由 float.ts 手动实现（透明窗口 + 点击穿透下原生 app-region 不可靠），此处必须 no-drag，
+       否则会与手动拖拽叠加成双倍位移 */
+    -webkit-app-region: no-drag;
     box-sizing: border-box;
+  }
+
+  /* 拖拽中：整岛显示抓取光标 */
+  .dynamic-island.island-dragging,
+  .dynamic-island.island-dragging * {
+    cursor: grabbing !important;
   }
 
   /* 紧凑胶囊态 (Pill Mode) */
@@ -1828,7 +1836,7 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    -webkit-app-region: drag;
+    -webkit-app-region: no-drag;
   }
   .island-brand-group {
     display: flex;
@@ -1958,7 +1966,7 @@
     justify-content: space-between;
     width: 100%;
     margin-top: 4px;
-    -webkit-app-region: drag;
+    -webkit-app-region: no-drag;
   }
   .island-clock-box {
     display: flex;

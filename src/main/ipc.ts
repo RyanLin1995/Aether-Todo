@@ -32,6 +32,10 @@ interface IpcDeps {
     setOpacity: (value: number) => number;
     /** 光标不在岛内时整窗穿透（透明区域不拦截下层点击） */
     setIgnoreMouseEvents: (ignore: boolean) => void;
+    /** 读取浮窗当前屏幕坐标 */
+    bounds: () => { x: number; y: number } | null;
+    /** 按增量移动浮窗（内部会夹进工作区）；commit=true 时把落点写进设置 */
+    moveBy: (dx: number, dy: number, commit: boolean) => { x: number; y: number } | null;
   };
   setActiveUserId?: (id: string) => void;
   onLocaleChange?: (locale: string) => void;
@@ -330,6 +334,16 @@ function registerIpc({
     float.setIgnoreMouseEvents(Boolean(ignore));
     return OK({});
   }));
+
+  /** 浮窗当前屏幕坐标（拖拽基准点） */
+  ipcMain.handle('float:bounds', safe(async () => OK(float.bounds())));
+
+  /** 拖拽移动浮窗：commit=true 时落盘保存，下次启动仍在原地 */
+  ipcMain.handle(
+    'float:moveBy',
+    safe(async (_u, { dx, dy, commit }: { dx: number; dy: number; commit?: boolean }) =>
+      OK(float.moveBy(Number(dx), Number(dy), Boolean(commit))))
+  );
 
   /** 浮窗内容：当前任务 + 番茄状态 + 透明度 + 语言 */
   ipcMain.handle('float:state', safe(async (u) => {

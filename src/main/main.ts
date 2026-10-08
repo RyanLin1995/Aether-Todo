@@ -106,46 +106,10 @@ function createFloatWindow(): BrowserWindow {
   floatWindow.loadFile(path.join(APP_ROOT, 'src', 'renderer', 'float.html'));
   floatWindow.once('ready-to-show', () => floatWindow?.showInactive());
 
-  const persist = (patch: { floatX?: number; floatY?: number; floatOpacity?: number }) => {
-    if (activeUserId && store) store.updateSettings(activeUserId, patch);
-  };
-
-  /** 贴边吸附：松开拖拽后自动吸附到工作区边缘（阈值 32px，防抖避免拖拽颤动） */
-  let snapTimer: ReturnType<typeof setTimeout> | null = null;
-  const snapToEdge = () => {
-    const win = floatWindow;
-    if (!win || win.isDestroyed()) return;
-    const bounds = win.getBounds();
-    const workArea = screen.getDisplayMatching(bounds).workArea;
-    const SNAP = 32;
-    let nx = bounds.x;
-    let ny = bounds.y;
-
-    // 水平方向：左边缘或右边缘吸附
-    if (bounds.x <= workArea.x + SNAP) {
-      nx = workArea.x;
-    } else if (bounds.x + bounds.width >= workArea.x + workArea.width - SNAP) {
-      nx = workArea.x + workArea.width - bounds.width;
-    }
-
-    // 垂直方向：上边缘或下边缘吸附
-    if (bounds.y <= workArea.y + SNAP) {
-      ny = workArea.y;
-    } else if (bounds.y + bounds.height >= workArea.y + workArea.height - SNAP) {
-      ny = workArea.y + workArea.height - bounds.height;
-    }
-
-    if (nx !== bounds.x || ny !== bounds.y) {
-      win.setBounds({ width: bounds.width, height: bounds.height, x: Math.round(nx), y: Math.round(ny) });
-    }
-    persist({ floatX: Math.round(nx), floatY: Math.round(ny) });
-  };
-
-  floatWindow.on('moved', () => {
-    if (snapTimer) clearTimeout(snapTimer);
-    snapTimer = setTimeout(snapToEdge, 120);
-  });
-
+  /**
+   * 不再做贴边吸附：岛停在用户松手的位置（只在工作区内夹取，见 float.moveTo）。
+   * 位置由拖拽结束时的 float:moveTo(commit=true) 落盘保存。
+   */
   floatWindow.on('closed', () => {
     floatWindow = null;
   });
@@ -494,6 +458,30 @@ async function bootstrap(): Promise<void> {
         if (floatWindow && !floatWindow.isDestroyed()) {
           floatWindow.setIgnoreMouseEvents(ignore, { forward: true });
         }
+      },
+      bounds: () => {
+        if (!floatWindow || floatWindow.isDestroyed()) return null;
+        const [x, y] = floatWindow.getPosition();
+        return { x, y };
+      },
+      /**
+       * 手动拖拽落地：基于窗口当前位置累加增量，再夹进所在显示器的工作区
+       * （拖不到屏幕外）。commit=true 时写进设置——岛停在用户松手的位置，不再吸附回边缘。
+       */
+      moveBy: (dx: number, dy: number, commit: boolean) => {
+        if (!floatWindow || floatWindow.isDestroyed()) return null;
+        const [ox, oy] = floatWindow.getPosition();
+        const [w, h] = floatWindow.getSize();
+        const tx = ox + (Number.isFinite(dx) ? dx : 0);
+        const ty = oy + (Number.isFinite(dy) ? dy : 0);
+        const workArea = screen.getDisplayMatching({ x: ox, y: oy, width: w, height: h }).workArea;
+        const nx = Math.round(Math.min(Math.max(tx, workArea.x), workArea.x + workArea.width - w));
+        const ny = Math.round(Math.min(Math.max(ty, workArea.y), workArea.y + workArea.height - h));
+        if (nx !== ox || ny !== oy) floatWindow.setPosition(nx, ny);
+        if (commit && activeUserId && store) {
+          store.updateSettings(activeUserId, { floatX: nx, floatY: ny });
+        }
+        return { x: nx, y: ny };
       },
     },
     notifyActions: {
