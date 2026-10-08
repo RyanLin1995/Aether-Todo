@@ -158,9 +158,10 @@ function endDrag(e?: PointerEvent): void {
     drag.lastScreenY = e.screenY;
     // 位移为 0 也要发一次：主进程据此把当前落点写进设置
     sendDragStep(dx, dy, true);
-    applyIgnore(!overIsland(e.clientX, e.clientY));
+    // 展开态拖拽结束仍保持整窗接管点击（岛外点击要能收起）；收起态恢复按命中区域穿透
+    applyIgnore(isExpanded ? false : !overIsland(e.clientX, e.clientY));
   } else {
-    applyIgnore(true);
+    applyIgnore(!isExpanded);
   }
   drag.pointerId = -1;
 }
@@ -198,9 +199,14 @@ function updateIslandMode(): void {
   if (isExpanded) {
     island.classList.remove('island-compact');
     island.classList.add('island-expanded');
+    // 展开态：整窗接管点击（关闭穿透），岛外任意点击由 setupCollapseOnOutside 收起。
+    // 不再按命中区域穿透——否则透明边距的点击会落到下层窗口，收起反而不灵。
+    applyIgnore(false);
   } else {
     island.classList.remove('island-expanded');
     island.classList.add('island-compact');
+    // 收起态：恢复按命中区域穿透（鼠标在岛外时穿透到下层）
+    applyIgnore(true);
   }
 }
 
@@ -223,18 +229,26 @@ function setupMousePassThrough(): void {
 
   window.addEventListener('mousemove', (e) => {
     if (drag.active) return;
+    // 展开态：整窗不穿透，岛外点击才能被本窗口捕获并收起
+    if (isExpanded) {
+      applyIgnore(false);
+      return;
+    }
     applyIgnore(!overIsland(e.clientX, e.clientY));
   });
   // 光标快速甩出窗口：mouseout 无 relatedTarget 即离开文档，兜底恢复穿透
   window.addEventListener('mouseout', (e) => {
     if (drag.active) return;
+    // 展开态不恢复穿透：岛外点击还要靠本窗口捕获来收起
+    if (isExpanded) return;
     if (!e.relatedTarget) applyIgnore(true);
   });
   window.addEventListener('blur', () => {
     endDrag();
-    applyIgnore(true);
     // 展开态下「点到别处」= 窗口失焦（点其他窗口 / 桌面 / 穿透到下层窗口），一律收起
     if (!isConfirmOpen()) collapseIsland();
+    // 收起后才恢复穿透；展开态若确认弹窗打开则不恢复，保持弹窗模态
+    if (!isExpanded) applyIgnore(true);
   });
 
   // 初始默认穿透：收起态胶囊只占窗口一小块，其余透明区域必须可点击下层
